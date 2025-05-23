@@ -1,6 +1,6 @@
 import Image from "next/image";
 import styles from "./page.module.css";
-import Link from "next/link";
+import Button from "@/components/Button/Button";
 
 export default function Home() {
   return (
@@ -8,7 +8,7 @@ export default function Home() {
       <div className={styles.item}>
         <h1 className={styles.title}>Welcome to my Portfolio Site.  </h1>
         <p className={styles.description}>Explore my work and have fun!</p>
-        <Link className={styles.button} href="/portfolio"> See my works</Link>
+        <Button name="Let's Sail?" route="/portfolio" />
       </div>
 
       <div className={styles.imgcontiner}>

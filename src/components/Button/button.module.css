@@ -1,0 +1,14 @@
+.container {
+
+}
+.button {
+  padding: 7px;
+  cursor: pointer; 
+  background: linear-gradient(to right, rgb(88, 206, 88), rgb(64, 64, 143));
+  border: none;
+  border-radius: 5px;
+  width: max-content;
+  color: white;
+  font-size: large;
+
+}

@@ -4,6 +4,7 @@ body {
   overflow-x: hidden;
   background-color: #111;
   color: #bbb;
+  font-family: var(--font-geist-mono), sans-serif;
 }
 * {
   box-sizing: border-box;

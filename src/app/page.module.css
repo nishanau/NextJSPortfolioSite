@@ -23,7 +23,7 @@
   background: linear-gradient(to bottom, rgb(51, 51, 167), gray);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  
+  background-clip: text;
 }
 
 .description {
@@ -31,14 +31,3 @@
   font-weight: 300;
 
 } 
-.button {
-  padding: 15px;
-  cursor: pointer; 
-  background: linear-gradient(to right, rgb(88, 206, 88), rgb(64, 64, 143));
-  border: none;
-  border-radius: 5px;
-  width: max-content;
-  color: white;
-  font-size: large;
-
-}
