@@ -3,8 +3,23 @@ import styles from "./page.module.css";
 
 export default function Home() {
   return (
-    <div>
-      Home
+    <div className={styles.container}>
+      <div className={styles.item}>
+        <h1 className={styles.title}>Welcome to my Portfolio Site.  </h1>
+        <p className={styles.description}>Explore my work and have fun!</p>
+        <button className={styles.button}>See my works</button>
+      </div>
+
+      <div className={styles.imgcontiner}>
+        <Image
+          src="https://images.pexels.com/photos/158826/structure-light-led-movement-158826.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1g"
+          className={styles.img}
+          alt="Home Image" 
+          width={700}
+          height={500}
+          />
+
+      </div>
     </div>
   );
 }
