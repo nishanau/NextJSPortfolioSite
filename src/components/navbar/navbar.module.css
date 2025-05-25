@@ -23,7 +23,8 @@
    gap: 20px;
 }
 .link:hover {
-    color: green;
+  color: #00ffcc; /* Highlight color */
+  font-weight: bold;
 }
 .logout {
     padding: 5px;
