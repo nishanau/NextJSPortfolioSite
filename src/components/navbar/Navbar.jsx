@@ -1,7 +1,11 @@
+"use client";
 import Link from "next/link";
 import React from "react";
-import styles from './navbar.module.css'
+import styles from "./navbar.module.css";
 import Button from "../Button/Button";
+import DarkModeToggle from "../DarkModeToggle/DarkModeToggle";
+import { useSession } from "next-auth/react";
+import { usePathname } from "next/navigation";
 const links = [
   {
     id: 1,
@@ -13,11 +17,7 @@ const links = [
     title: "Portfolio",
     url: "/portfolio",
   },
-  {
-    id: 3,
-    title: "Blog",
-    url: "/blog",
-  },
+
   {
     id: 4,
     title: "About",
@@ -35,18 +35,29 @@ const links = [
   },
 ];
 const Navbar = () => {
+  const { data: session, status } = useSession();
+  const pathname = usePathname();
   return (
     <div className={styles.container}>
-      <Link href="/" className={styles.logo}>Welcome</Link>
+      <Link href="/" className={styles.logo}>
+        {session ? session.user.name.split(" ")[0]: "Nishan" }
+      </Link>
       <div className={styles.links}>
+        <DarkModeToggle />
         {links.map((link) => (
-          <Link key={link.id} href={link.url} className={styles.link}>
+          <Link key={link.id} href={link.url} className={`${styles.link} ${pathname === link.url ? styles.active : ""}`}>
             {link.title}
           </Link>
         ))}
-       <Button route="" name = "Logout" />
+        {status === "loading" ? (
+          <Button name="Login" route="" />
+        ) : session ? (
+          
+          <Button name="Logout" route="" />
+        ) : (
+          <Button name="Login" route="" />
+        )}
       </div>
-
     </div>
   );
 };

@@ -3,10 +3,11 @@ import styles from "./page.module.css";
 import { Butterfly_Kids } from "next/font/google";
 import Button from "@/components/Button/Button";
 import Image from "next/image";
-const Category = ({ params }) => {
+const  Category = async ({ params }) => {
+  const {category} = await params;
   return (
     <div className={styles.container}>
-      <h3>{params.category} </h3>
+      <h3>{ category} </h3>
       <div className={styles.item}>
         <div className={styles.itemContent}>
           <h1 className={styles.title}>Project Title</h1>

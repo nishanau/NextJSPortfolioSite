@@ -2,6 +2,11 @@ import Image from "next/image";
 import styles from "./page.module.css";
 import Button from "@/components/Button/Button";
 
+export const metadata = {
+  title: "My Portfolio: Home",
+  description: "Nishan's Portfolio Site",
+};
+
 export default function Home() {
   return (
     <div className={styles.container}>

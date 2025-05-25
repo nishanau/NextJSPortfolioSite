@@ -22,7 +22,12 @@
     border-radius: 5px;
     position: relative;
     background-size: cover !important;
-
+    display: inline-block;
+    transition: transform 0.3s ease;
+}
+.galleryItems:hover {
+    transform: scale(1.1);
+    border-color: aqua;
 }
 .galleryItems:nth-child(1){
     background: url("/websites.jpg");
@@ -35,8 +40,12 @@
 .galleryItems:nth-child(3){
     background: url("/illustration.png");
 }
+
+.galleryItems:nth-child(4){
+    background: url("/automation.jpg");
+}
 .galleryItems:hover .galleryTitle {
-    color: green;
+    color: green !important;
 }
 .galleryTitle {
     position: absolute;
@@ -44,4 +53,5 @@
     bottom: 10px;
     font-size: 30px;
     font-weight: bold;
+    color: white !important;
 }
