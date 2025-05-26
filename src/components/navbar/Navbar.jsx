@@ -32,7 +32,7 @@ const links = [
     id: 6,
     title: "Dashboard",
     url: "/dashboard",
-  },
+  }
 ];
 const Navbar = () => {
   const { data: session, status } = useSession();
@@ -40,23 +40,30 @@ const Navbar = () => {
   return (
     <div className={styles.container}>
       <Link href="/" className={styles.logo}>
-        {session ? session.user.name.split(" ")[0]: "Nishan" }
+        {session ? session.user.name.split(" ")[0] : "Nishan"}
       </Link>
       <div className={styles.links}>
         <DarkModeToggle />
         {links.map((link) => (
-          <Link key={link.id} href={link.url} className={`${styles.link} ${pathname === link.url ? styles.active : ""}`}>
+          <Link
+            key={link.id}
+            href={link.url}
+            className={`${styles.link} ${
+              pathname === link.url ? styles.active : ""
+            }`}
+          >
             {link.title}
           </Link>
         ))}
-        {status === "loading" ? (
-          <Button name="Login" route="" />
-        ) : session ? (
-          
-          <Button name="Logout" route="" variant="var2"/>
-        ) : (
-          <Button name="Login" route="" />
-        )}
+        <div className={styles.logInOutButtonContainer}>
+          {status === "loading" ? (
+            <Button name="Login" route="/dashboard/login" />
+          ) : session ? (
+            <Button name="Logout" route="" />
+          ) : (
+            <Button name="Login" route="/dashboard/login" />
+          )}
+        </div>
       </div>
     </div>
   );

@@ -31,7 +31,7 @@ export const About = () => {
                 <h1>About Me</h1>
                 <p>I approach my work with patience, consistency, and persistence—qualities I believe are essential in the ever-evolving world of IT. Learning isn’t just something I do; it’s a constant mindset because technology never stands still. I’m driven by a genuine passion for solving problems and improving systems, whether through innovative tech solutions or smarter workflows. Grounded in curiosity and resilience, I’m dedicated to growing both personally and professionally while delivering meaningful impact in everything I undertake.</p>
                 <Button route="/portfolio" name="Check Out My Work" />
-                <button onClick={() => showToast("Clicked Button")}>click here</button>
+
                 
             </div>
         </div>

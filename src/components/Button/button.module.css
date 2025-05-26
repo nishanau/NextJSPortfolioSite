@@ -8,11 +8,12 @@
   border: none;
   border-radius: 5px;
   width: max-content;
-  color: white;
+  
   font-size: large;
   display: inline-block;
   transition: transform 0.3s ease;
-
+  color: white;
+   background: linear-gradient(to right, rgb(88, 206, 88), rgb(64, 64, 143));
 }
 
 .button:hover {
@@ -20,11 +21,21 @@
 
   border: 3px solid rgb(182, 72, 216);
 }
-
-.var1{
- background: linear-gradient(to right, rgb(88, 206, 88), rgb(64, 64, 143));
+.var2{
+ background: linear-gradient(to right,rgb(64, 64, 143),rgb(253, 35, 35) );
 }
 
-.var2 {
-  background: linear-gradient(to right,rgb(64, 64, 143),rgb(253, 35, 35) );
+
+.login{
+    padding: 3px;
+    font-weight: bold;
+    font-size: medium;
+    background: transparent; 
+      
+}
+
+.logout{
+    padding: 3px;
+    font-weight: bold;
+      font-size: medium;
 }

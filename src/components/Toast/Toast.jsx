@@ -1,19 +1,30 @@
-import React, { useEffect } from 'react'
-import styles from './toast.module.css'
+import React, { useEffect } from "react";
+import styles from "./toast.module.css";
 
-export const Toast = ({ message, onClose }) => {
-    useEffect(() => {
-        if (!message) return;
-        const timer = setTimeout(() => {
-            onClose();
-        }, 3000)
-        return () => clearTimeout(timer);
+export const Toast = ({ message, onClose, type }) => {
+  useEffect(() => {
+    if (!message) return;
+    const timer = setTimeout(() => {
+      onClose();
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [message, onClose]);
 
-    }, [message, onClose])
-    return (
-        <div className={`${styles.container} ${!message ? styles.hidden : ""}`} role="alert">
-            {message}
-        </div>
-    )
-}
+    const bgColors = {
+    success: "green",
+    error: "red",
+    info: "blue",
+    warning: "yellow",
+  };
+
+  return (
+    <div
+      className={`${styles.container}  ${!message ? styles.hidden : ""}`}
+      style={{backgroundColor: bgColors[type] || "gray",}}
+      role="alert"
+    >
+      {message}
+    </div>
+  );
+};
 export default Toast;
