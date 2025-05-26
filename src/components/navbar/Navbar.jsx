@@ -53,7 +53,7 @@ const Navbar = () => {
           <Button name="Login" route="" />
         ) : session ? (
           
-          <Button name="Logout" route="" />
+          <Button name="Logout" route="" variant="var2"/>
         ) : (
           <Button name="Login" route="" />
         )}

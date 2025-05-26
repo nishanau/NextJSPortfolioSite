@@ -1,13 +1,17 @@
+'use client'
 import React from 'react'
 import styles from './page.module.css'
 import Image from 'next/image'
 import Button from '@/components/Button/Button'
-
-export const metadata = {
-  title: "About",
-  description: "About Page",
-};
+import Toast from '@/components/Toast/Toast'
+import {useToast} from '@/context/ToastContext'
+// export const metadata = {
+//   title: "About",
+//   description: "About Page",
+// };
 export const About = () => {
+    const {showToast} = useToast();
+
     return (
         <div className={styles.container}>
             <div className={styles.imgContainer}>
@@ -27,6 +31,8 @@ export const About = () => {
                 <h1>About Me</h1>
                 <p>I approach my work with patience, consistency, and persistence—qualities I believe are essential in the ever-evolving world of IT. Learning isn’t just something I do; it’s a constant mindset because technology never stands still. I’m driven by a genuine passion for solving problems and improving systems, whether through innovative tech solutions or smarter workflows. Grounded in curiosity and resilience, I’m dedicated to growing both personally and professionally while delivering meaningful impact in everything I undertake.</p>
                 <Button route="/portfolio" name="Check Out My Work" />
+                <button onClick={() => showToast("Clicked Button")}>click here</button>
+                
             </div>
         </div>
     )

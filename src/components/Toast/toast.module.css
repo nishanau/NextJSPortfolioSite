@@ -1,0 +1,26 @@
+/* toast.module.css */
+
+.container {
+  position: fixed;
+  top: 1rem;            /* 16px from top */
+  left: 50%;            /* center horizontally */
+  transform: translateX(-50%);  /* adjust for perfect centering */
+  z-index: 9999;        /* above most elements */
+  
+  background-color: #333;  /* dark background */
+  color: white;            /* white text */
+  padding: 0.75rem 1.5rem; /* vertical and horizontal padding */
+  border-radius: 0.5rem;   /* rounded corners */
+
+
+
+  font-size: 1rem;
+  max-width: 90vw;         /* max width responsive */
+  white-space: nowrap;     /* keep message in one line */
+  overflow: hidden;
+  text-overflow: ellipsis; /* truncate if too long */
+}
+.container.hidden {
+  opacity: 0;
+  pointer-events: none; /* disable clicks when hidden */
+}

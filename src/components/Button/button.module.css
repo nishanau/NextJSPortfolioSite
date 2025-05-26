@@ -4,7 +4,7 @@
 .button {
   padding: 7px;
   cursor: pointer; 
-  background: linear-gradient(to right, rgb(88, 206, 88), rgb(64, 64, 143));
+ 
   border: none;
   border-radius: 5px;
   width: max-content;
@@ -19,4 +19,12 @@
   transform: scale(1.1);
 
   border: 3px solid rgb(182, 72, 216);
+}
+
+.var1{
+ background: linear-gradient(to right, rgb(88, 206, 88), rgb(64, 64, 143));
+}
+
+.var2 {
+  background: linear-gradient(to right,rgb(64, 64, 143),rgb(253, 35, 35) );
 }

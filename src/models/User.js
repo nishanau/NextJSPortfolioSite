@@ -1,7 +1,6 @@
 import mongoose from "mongoose";
-import { unique } from "next/dist/build/utils";
 
-const { Scheme } = mongoose;
+const { Schema } = mongoose;
 
 const userSchema = new Schema(
   {
@@ -23,4 +22,6 @@ const userSchema = new Schema(
   },
   { timestamps: true }
 );
-export default mongoose.model("User", userSchema)
+
+const User = mongoose.models.User ||  mongoose.model("User", userSchema);
+export default User;

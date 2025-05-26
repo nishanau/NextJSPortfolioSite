@@ -5,16 +5,16 @@ import Link from "next/link";
 import { signIn, signOut } from "next-auth/react";
 import { Caladea } from "next/font/google";
 
-const Button = ({ name, route }) => {
-  let event = () => {};
+const Button = ({ name, route, variant }) => {
+  let event = () => { };
   if (name === "Logout") {
     event = () => signOut();
   } else if (name === "Login") {
-    event = () => signIn("google", {callbackUrl: "/"})
+    event = () => signIn("google", { callbackUrl: "/" })
   }
   return (
-    <div className="styles.container">
-      <Link href={route} className={styles.button} onClick={event}>
+    <div className={styles.container}>
+      <Link href={route} className={`${styles.button} ${variant === "var2" ? styles.var2 : styles.var1}`} onClick={event}>
         {name}
       </Link>
     </div>

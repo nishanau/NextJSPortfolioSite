@@ -36,3 +36,18 @@ transition: 1s all ease;
   background-color: #111;
   color: white;
 }
+
+.theme.light input,
+.theme.light textarea,
+.theme.light select {
+  color: #111; /* dark text */
+  font-family: var(--font-geist-mono), sans-serif;
+
+}
+
+.theme.dark input,
+.theme.dark textarea,
+.theme.dark select {
+  color: white; /* dark text */
+  font-family: var(--font-geist-mono), sans-serif;
+}
