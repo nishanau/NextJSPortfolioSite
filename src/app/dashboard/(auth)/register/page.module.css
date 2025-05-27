@@ -40,7 +40,7 @@
   border: none;
   border-radius: 5px;
   width: max-content;
-  color: white;
+  color: white !important;
   font-size: large;
   display: inline-block;
   transition: transform 0.3s ease;

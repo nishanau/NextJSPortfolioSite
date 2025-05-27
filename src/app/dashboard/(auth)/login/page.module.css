@@ -42,7 +42,11 @@
   transition: transform 0.3s ease;
   border: 2px solid gray;
   background: linear-gradient(to right,rgb(64, 64, 143),rgb(253, 35, 35) );
+  
 
+}
+.loginButton {
+color: white !important;
 }
 
 .button:hover {

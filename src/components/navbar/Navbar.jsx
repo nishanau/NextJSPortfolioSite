@@ -1,11 +1,13 @@
 "use client";
 import Link from "next/link";
-import React from "react";
+import React, { use, useEffect } from "react";
 import styles from "./navbar.module.css";
-import Button from "../Button/Button";
 import DarkModeToggle from "../DarkModeToggle/DarkModeToggle";
 import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
+import { useToast } from "@/context/ToastContext";
+import { useRouter, useSearchParams } from "next/navigation";
 const links = [
   {
     id: 1,
@@ -23,20 +25,48 @@ const links = [
     title: "About",
     url: "/about",
   },
-  {
-    id: 5,
-    title: "Contact",
-    url: "/contact",
-  },
+
   {
     id: 6,
     title: "Dashboard",
     url: "/dashboard",
-  }
+  },
+  {
+    id: 7,
+    title: "Login",
+    url: "/dashboard/login",
+  },
+  {
+    id: 8,
+    title: "Register",
+    url: "/dashboard/register",
+  },
+  {
+    id: 8,
+    title: "Logout",
+    url: "/dashboard/register",
+  },
+
+
+
 ];
 const Navbar = () => {
+  const { showToast } = useToast();
   const { data: session, status } = useSession();
   const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const loggedOut = searchParams.get('loggedOut');
+    if (loggedOut) {
+      showToast("Successfully Logged Out!", "success");
+      router.replace(window.location.pathname);
+    }
+  }, [searchParams]);
+
+
+
   return (
     <div className={styles.container}>
       <Link href="/" className={styles.logo}>
@@ -44,26 +74,50 @@ const Navbar = () => {
       </Link>
       <div className={styles.links}>
         <DarkModeToggle />
-        {links.map((link) => (
-          <Link
-            key={link.id}
-            href={link.url}
-            className={`${styles.link} ${
-              pathname === link.url ? styles.active : ""
-            }`}
-          >
-            {link.title}
-          </Link>
-        ))}
-        <div className={styles.logInOutButtonContainer}>
-          {status === "loading" ? (
-            <Button name="Login" route="/dashboard/login" />
-          ) : session ? (
-            <Button name="Logout" route="" />
-          ) : (
-            <Button name="Login" route="/dashboard/login" />
-          )}
-        </div>
+        {
+          session ? links.filter(link => link.title !== "Login" && link.title !== "Register")
+            .map((link) => {
+              if (link.title === "Logout") {
+                return (
+                  <Link
+                    key={link.id}
+                    href={link.url}
+                    className={`${styles.link}`}
+                    onClick={
+                      async () => {
+                        await signOut({ callbackUrl: "/?loggedOut=true" });
+                      }
+                    }
+                  >
+                    {link.title}
+                  </Link>
+                )
+              }
+              return (
+                <Link
+                  key={link.id}
+                  href={link.url}
+                  className={`${styles.link} ${pathname === link.url ? styles.active : ""
+                    }`}
+                >
+                  {link.title}
+                </Link>
+              )
+
+            })
+            :
+            links.filter(link => link.title !== "Logout")
+              .map((link) => (<Link
+                key={link.id}
+                href={link.url}
+                className={`${styles.link} ${pathname === link.url ? styles.active : ""
+                  }`}
+              >
+                {link.title}
+              </Link>))
+        }
+
+
       </div>
     </div>
   );

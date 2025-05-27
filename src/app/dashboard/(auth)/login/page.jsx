@@ -1,9 +1,15 @@
 "use client";
-import React from "react";
+import React, { useEffect } from "react";
 import styles from "./page.module.css";
 import Button from "@/components/Button/Button";
+import { signIn } from "next-auth/react";
+
+
 const Login = () => {
-  const handleSubmit = () => {};
+
+
+  const handleSubmit = () => { };
+
   return (
     <div className={styles.container}>
       <form className={styles.form} onSubmit={handleSubmit}>
@@ -20,9 +26,13 @@ const Login = () => {
           required
         />
         <div className={styles.loginContainer}>
-          <button className={styles.button}>Login</button>
+          <button className={`${styles.button} ${styles.loginButton}`}>Login</button>
           <div className={styles.thirdPartyLoginContainer}>
-            <div className={`${styles.button} ${styles.buttonGoogle} `}>
+            <div className={`${styles.button} ${styles.buttonGoogle} `} onClick={
+              () => {
+                signIn("google", { callbackUrl: "/dashboard" });
+              }
+            }>
               <p>Login with</p>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
