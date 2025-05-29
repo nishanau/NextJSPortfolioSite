@@ -38,7 +38,7 @@
 }
 
 .galleryItems:nth-child(3){
-    background: url("/illustration.png");
+    background: url("/uiux_animated.png");
 }
 
 .galleryItems:nth-child(4){
@@ -54,4 +54,9 @@
     font-size: 30px;
     font-weight: bold;
     color: white !important;
+
+}
+.mainTitle {
+    font-size: 50px;
+    margin-bottom: 10px;
 }

@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 
 const Register = () => {
   const [err, setErr] = useState(false);
-  const {showToast} = useToast();
+  const { showToast } = useToast();
 
   const router = useRouter();
   const handleSubmit = async (e) => {
@@ -30,13 +30,15 @@ const Register = () => {
         }),
       });
       if (res.status === 409) {
-        console.log(showToast("Username or email already taken","error"));
+        showToast("Username or email already taken", "error");
       }
-      res.status === 201 &&
-        router.push("/dashboard/login?success=Accout has been created");
-        showToast("Account Created", "success")
+      if (res.status === 201) {
+        showToast("Account Created", "success");
+        router.push("/dashboard/login?registered=true");
+ 
+      }
     } catch (error) {
-      showToast("Unknown error Occured.", "error")
+      showToast("Unknown error Occured.", "error");
     }
   };
   return (
@@ -63,10 +65,7 @@ const Register = () => {
         <button className={styles.button}>Register</button>
       </form>
 
-      <Button
-        route="/dashboard/login"
-        name="Login with existing account"
-      />
+      <Button route="/dashboard/login" name="Login with existing account" />
     </div>
   );
 };

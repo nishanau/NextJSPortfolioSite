@@ -6,7 +6,7 @@ import { useToast } from "./ToastContext";
 export default function ToastHandler() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const {showToast} = useToast();
+  const { showToast } = useToast();
   const [hasShown, setHasShown] = useState(false);
 
   useEffect(() => {
@@ -14,6 +14,7 @@ export default function ToastHandler() {
 
     const loggedIn = searchParams.get("loggedIn");
     const loggedOut = searchParams.get("loggedOut");
+
     if (loggedIn) {
       showToast("Successfully Logged in.", "success");
       setHasShown(true);
@@ -22,7 +23,7 @@ export default function ToastHandler() {
       showToast("Successfully Logged Out.", "success");
       setHasShown(true);
       router.replace(window.location.pathname, undefined, { shallow: true });
-    }
+    } 
   }, [searchParams, router, showToast, hasShown]);
   return null;
 }
