@@ -30,7 +30,7 @@ const Login = () => {
           <div className={styles.thirdPartyLoginContainer}>
             <div className={`${styles.button} ${styles.buttonGoogle} `} onClick={
               () => {
-                signIn("google", { callbackUrl: "/dashboard" });
+                signIn("google", { callbackUrl: "/dashboard?loggedIn=true" });
               }
             }>
               <p>Login with</p>

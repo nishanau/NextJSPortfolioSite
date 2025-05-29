@@ -51,19 +51,10 @@ const links = [
 
 ];
 const Navbar = () => {
-  const { showToast } = useToast();
-  const { data: session, status } = useSession();
-  const pathname = usePathname();
-  const router = useRouter();
-  const searchParams = useSearchParams();
 
-  useEffect(() => {
-    const loggedOut = searchParams.get('loggedOut');
-    if (loggedOut) {
-      showToast("Successfully Logged Out!", "success");
-      router.replace(window.location.pathname);
-    }
-  }, [searchParams]);
+  const { data: session } = useSession();
+  const pathname = usePathname();
+
 
 
 

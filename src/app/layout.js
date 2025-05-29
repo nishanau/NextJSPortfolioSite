@@ -5,6 +5,8 @@ import Footer from "@/components/footer/Footer";
 import { ThemeProvider } from "@/context/ThemeContext";
 import AuthProvider from '@/components/AuthProvider/AuthProvider'
 import { ToastProvider } from "@/context/ToastContext";
+import ToastHandler from "@/context/ToastHandler";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -27,11 +29,13 @@ export default function RootLayout({ children }) {
         <ThemeProvider>
           <AuthProvider>
             <ToastProvider>
+              <ToastHandler />
             <div className="container">
               <Navbar />
               {children}
               <Footer />
             </div>
+
             </ToastProvider>
           </AuthProvider>
         </ThemeProvider>
