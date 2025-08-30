@@ -6,8 +6,6 @@ import DarkModeToggle from "../DarkModeToggle/DarkModeToggle";
 import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { useToast } from "@/context/ToastContext";
-import { useRouter, useSearchParams } from "next/navigation";
 const links = [
   {
     id: 1,
@@ -26,26 +24,26 @@ const links = [
     url: "/about",
   },
 
-  {
-    id: 6,
-    title: "Dashboard",
-    url: "/dashboard",
-  },
-  {
-    id: 7,
-    title: "Login",
-    url: "/dashboard/login",
-  },
-  {
-    id: 8,
-    title: "Register",
-    url: "/dashboard/register",
-  },
-  {
-    id: 8,
-    title: "Logout",
-    url: "/dashboard/register",
-  },
+  // {
+  //   id: 6,
+  //   title: "Dashboard",
+  //   url: "/dashboard",
+  // },
+  // {
+  //   id: 7,
+  //   title: "Login",
+  //   url: "/dashboard/login",
+  // },
+  // {
+  //   id: 8,
+  //   title: "Register",
+  //   url: "/dashboard/register",
+  // },
+  // {
+  //   id: 8,
+  //   title: "Logout",
+  //   url: "/dashboard/register",
+  // },
 
 
 
