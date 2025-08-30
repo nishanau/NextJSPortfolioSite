@@ -11,7 +11,7 @@ export const metadata = {
 const Portfolio = () => {
   return (
     <div className={styles.container}>
-      <h3>Choose a gallery</h3>
+      <h3>Choose a category</h3>
       <div className={styles.galleryContainer}>
         <div className={styles.galleryContainer}>
           <Link href="/portfolio/websites" className={styles.galleryItems}>

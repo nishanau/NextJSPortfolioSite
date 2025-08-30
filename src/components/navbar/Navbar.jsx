@@ -55,9 +55,6 @@ const Navbar = () => {
   const { data: session } = useSession();
   const pathname = usePathname();
 
-
-
-
   return (
     <div className={styles.container}>
       <Link href="/" className={styles.logo}>
@@ -88,7 +85,7 @@ const Navbar = () => {
                 <Link
                   key={link.id}
                   href={link.url}
-                  className={`${styles.link} ${pathname === link.url ? styles.active : ""
+                  className={`${styles.link} ${pathname === link.url || (link.url !== '/' && pathname.startsWith(link.url)) ? styles.active : ""
                     }`}
                 >
                   {link.title}
@@ -101,7 +98,7 @@ const Navbar = () => {
               .map((link) => (<Link
                 key={link.id}
                 href={link.url}
-                className={`${styles.link} ${pathname === link.url ? styles.active : ""
+                className={`${styles.link} ${pathname === link.url || (link.url !== '/' && pathname.startsWith(link.url)) ? styles.active : ""
                   }`}
               >
                 {link.title}

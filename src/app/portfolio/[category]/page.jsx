@@ -1,6 +1,7 @@
 import React from "react";
 import styles from "./page.module.css";
 import Projectcard from "@/components/ProjectCard/Projectcard";
+import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
 
 const uiux = [
   {
@@ -55,11 +56,17 @@ const automation = [{
 }];
 
 const Category = async ({ params }) => {
-  const { category } = await params;
+  const {category} = await params || '';
 
   if (category === "devops-projects") {
     return (
       <div className={styles.container}>
+        <Breadcrumb 
+          items={[
+            { label: "Portfolio", href: "/portfolio" },
+            { label: "DevOps Projects", href: "/portfolio/devops-projects" }
+          ]} 
+        />
         <h2>Devops Projects</h2>
         {devops.map((project) => (
           <Projectcard key={project.id} project={project} />
@@ -69,6 +76,12 @@ const Category = async ({ params }) => {
   } else if (category === "ui-ux-designs") {
     return (
       <div className={styles.container}>
+        <Breadcrumb 
+          items={[
+            { label: "Portfolio", href: "/portfolio" },
+            { label: "UI/UX Designs", href: "/portfolio/ui-ux-designs" }
+          ]} 
+        />
         <h2>UI UX Projects</h2>
         {uiux.map((project) => (
           <Projectcard key={project.id} project={project} />
@@ -78,6 +91,12 @@ const Category = async ({ params }) => {
   } else if (category === "automation") {
     return (
       <div className={styles.container}>
+        <Breadcrumb 
+          items={[
+            { label: "Portfolio", href: "/portfolio" },
+            { label: "Automation", href: "/portfolio/automation" }
+          ]} 
+        />
         <h2>Automation</h2>
         {automation.map((project) => (
           <Projectcard key={project.id} project={project} />
@@ -87,6 +106,12 @@ const Category = async ({ params }) => {
   } else if (category === "websites") {
     return (
       <div className={styles.container}>
+        <Breadcrumb 
+          items={[
+            { label: "Portfolio", href: "/portfolio" },
+            { label: "Websites", href: "/portfolio/websites" }
+          ]} 
+        />
         <h2>Websites</h2>
         {websites.map((project) => (
           <Projectcard key={project.id} project={project} />
