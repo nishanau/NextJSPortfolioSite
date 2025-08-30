@@ -7,9 +7,7 @@
 .galleryContainer {
     gap: 70px;
     display: flex;
-    flex-wrap: wrap;
-    
-    
+    flex-wrap: wrap;   
 }
 .img {
     cursor: pointer;

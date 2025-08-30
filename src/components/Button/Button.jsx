@@ -14,6 +14,7 @@ const Button = ({ name, route, variant }) => {
     event = () => signOut();
   }
 
+
   const buttonClass = clsx(
     styles.button,
     variant === "var2" ? styles.var2 : styles.var1,
@@ -30,5 +31,6 @@ const Button = ({ name, route, variant }) => {
     </div>
   );
 };
+
 
 export default Button;
