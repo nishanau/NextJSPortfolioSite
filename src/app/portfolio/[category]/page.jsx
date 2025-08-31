@@ -36,15 +36,26 @@ const devops = [
   },
 ];
 
-const websites = [{
-      id: 1,
+const websites = [
+  {
+    id: 1,
+    title: "Chartered Accountant Firm Website",
+    description:
+      "Developed a modern, professional website for my brother's Chartered Accountant firm using Next.js and TypeScript. The site features responsive design, contact form with email integration, team showcases, and service descriptions. Implemented a centralized settings file for easy content management without requiring a backend or admin portal, allowing my brother to update firm details, services, and team information by modifying a single configuration file.",
+    image: "/websites.jpg",
+    category: "websites",
+    slug: "ca-firm-website",
+  },
+  {
+    id: 2,
     title: "CI/CD Dockerized App Deployment on AWS",
     description:
       "Built a production-grade DevOps pipeline deploying my Next.js portfolio from GitHub to AWS EC2 using Docker, Nginx, and GitHub Actions. It automates multi-stage Docker builds, pushes to Docker Hub, and deploys with automatic container restarts. Configured Nginx with Certbot for HTTPS, provisioned EC2 with Docker, and set up Prometheus and Grafana for monitoring container health and resource usage. Gained skills in Docker optimization, CI/CD automation, secure deployment, AWS management, and production-grade observability.",
     image: "/cicd_dockercompose.png",
     category: "websites",
     slug: "cicd-dockerized-app-deployment-aws",
-}];
+  }
+];
 const automation = [{
       id: 1,
     title: "CI/CD Dockerized App Deployment on AWS",
