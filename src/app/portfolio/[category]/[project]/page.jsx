@@ -301,6 +301,22 @@ server {
             <strong>SEO:</strong> Meta tags, semantic HTML, optimized content
           </li>
         </ul>
+        <h2>Live At:</h2>
+        <p>
+          View the site at:{" "}
+          <a
+            style={{
+              color: "skyblue",
+              textDecoration: "underline",
+              cursor: "pointer",
+            }}
+            href="https://nishanau.github.io/ca_firm_site/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            https://nishanau.github.io/ca_firm_site/
+          </a>
+        </p>
 
         <h2>Key Features</h2>
 
@@ -432,19 +448,6 @@ server {
           brother's professional practice with my development skills. By
           creating a solution that he could easily maintain, I was able to
           provide long-term value rather than just a one-time website build.
-        </p>
-
-        <h2>Live At:</h2>
-        <p>
-          View the site at:{" "}
-          <a
-            style={{ color: "skyblue", textDecoration: "underline", cursor: "pointer" }}
-            href="https://nishanau.github.io/ca_firm_site/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            https://nishanau.github.io/ca_firm_site/
-          </a>
         </p>
       </>
     ),
