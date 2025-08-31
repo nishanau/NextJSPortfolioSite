@@ -2,41 +2,248 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 100px;
-  flex-wrap: wrap;
+  min-height: calc(100vh - 200px);
+  gap: 40px;
+  padding: 20px 0;
 }
 
 .item {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 50px;
+  gap: 24px;
+  z-index: 1;
 }
 
-.img {
-  opacity: 0.7;
-  border-radius: 10px;
-animation: pulse 2s ease-in-out infinite;
-}
-@keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.1); /* grows 20% bigger */
-  }
+.titleWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.title{
-  font-size: 60px;
-  background: linear-gradient(to bottom, rgb(51, 51, 167), gray);
+.greeting {
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--text);
+  opacity: 0.8;
+}
+
+.title {
+  font-size: 72px;
+  line-height: 1.1;
+  margin: 0;
+  font-weight: 800;
+  background: linear-gradient(135deg, #4F46E5, #10B981);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-.description {
-  font-size: 25px;
-  font-weight: 300;
+.subtitle {
+  font-size: 32px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text);
+  opacity: 0.8;
+}
 
+.description {
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.6;
+  max-width: 600px;
+  color: var(--text);
+}
+
+.highlight {
+  color: #10B981;
+  font-weight: 600;
+}
+
+.skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.skill {
+  background: rgba(79, 70, 229, 0.1);
+  color: #4F46E5;
+  padding: 6px 14px;
+  border-radius: 30px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.skill:hover {
+  background: rgba(79, 70, 229, 0.2);
+  transform: translateY(-2px);
+}
+
+.cta {
+  display: flex;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.primaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 24px;
+  background: linear-gradient(135deg, #4F46E5, #10B981);
+  color: white;
+  border-radius: 30px;
+  font-weight: 500;
+  font-size: 16px;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25);
+}
+
+.primaryButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
+}
+
+.secondaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 24px;
+  background: transparent;
+  border: 2px solid #10B981;
+  color: #10B981;
+  border-radius: 30px;
+  font-weight: 500;
+  font-size: 16px;
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+
+.secondaryButton:hover {
+  background: rgba(16, 185, 129, 0.1);
+  transform: translateY(-2px);
+}
+
+.imgContainer {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+.imageWrapper {
+  position: relative;
+  z-index: 2;
+}
+
+.img {
+  border-radius: 20px;
+  object-fit: cover;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  transition: transform 0.5s ease;
+}
+
+.img:hover {
+  transform: translateY(-10px);
+}
+
+.decorativeShape {
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.3), rgba(16, 185, 129, 0.3));
+  border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+  top: 50px;
+  right: 50px;
+  z-index: 1;
+  animation: morphing 15s ease-in-out infinite;
+}
+
+@keyframes morphing {
+  0% {
+    border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+  }
+  25% {
+    border-radius: 58% 42% 75% 25% / 76% 46% 54% 24%;
+  }
+  50% {
+    border-radius: 50% 50% 33% 67% / 55% 27% 73% 45%;
+  }
+  75% {
+    border-radius: 33% 67% 58% 42% / 63% 68% 32% 37%;
+  }
+  100% {
+    border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+  }
+}
+
+/* Responsive styles */
+@media (max-width: 1100px) {
+  .title {
+    font-size: 56px;
+  }
+  
+  .subtitle {
+    font-size: 26px;
+  }
+  
+  .description {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 900px) {
+  .container {
+    flex-direction: column-reverse;
+    text-align: center;
+    gap: 60px;
+  }
+  
+  .item {
+    align-items: center;
+  }
+  
+  .skills, .cta {
+    justify-content: center;
+  }
+  
+  .decorativeShape {
+    width: 250px;
+    height: 250px;
+    top: 30px;
+    right: 30px;
+  }
+}
+
+@media (max-width: 600px) {
+  .title {
+    font-size: 42px;
+  }
+  
+  .subtitle {
+    font-size: 22px;
+  }
+  
+  .greeting {
+    font-size: 18px;
+  }
+  
+  .description {
+    font-size: 16px;
+  }
+  
+  .img {
+    width: 100%;
+    height: auto;
+  }
+  
+  .decorativeShape {
+    width: 200px;
+    height: 200px;
+  }
 } 
