@@ -3,15 +3,11 @@ import React from 'react'
 import styles from './page.module.css'
 import Image from 'next/image'
 import Button from '@/components/Button/Button'
-import Toast from '@/components/Toast/Toast'
-import {useToast} from '@/context/ToastContext'
 // export const metadata = {
 //   title: "About",
 //   description: "About Page",
 // };
 export const About = () => {
-    const {showToast} = useToast();
-
     return (
         <div className={styles.container}>
             <div className={styles.imgContainer}>

@@ -3,8 +3,6 @@ import "./globals.css";
 import Navbar from "@/components/navbar/Navbar";
 import Footer from "@/components/footer/Footer";
 import { ThemeProvider } from "@/context/ThemeContext";
-import { ToastProvider } from "@/context/ToastContext";
-import ToastHandler from "@/context/ToastHandler";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,14 +24,11 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <ThemeProvider>
-          <ToastProvider>
-            <ToastHandler />
-            <div className="container">
-              <Navbar />
-              {children}
-              <Footer />
-            </div>
-          </ToastProvider>
+          <div className="container">
+            <Navbar />
+            {children}
+            <Footer />
+          </div>
         </ThemeProvider>
       </body>
     </html>
