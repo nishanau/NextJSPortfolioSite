@@ -3,7 +3,6 @@ import "./globals.css";
 import Navbar from "@/components/navbar/Navbar";
 import Footer from "@/components/footer/Footer";
 import { ThemeProvider } from "@/context/ThemeContext";
-import AuthProvider from '@/components/AuthProvider/AuthProvider'
 import { ToastProvider } from "@/context/ToastContext";
 import ToastHandler from "@/context/ToastHandler";
 
@@ -27,17 +26,14 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <ThemeProvider>
-          <AuthProvider>
-            <ToastProvider>
-              <ToastHandler />
+          <ToastProvider>
+            <ToastHandler />
             <div className="container">
               <Navbar />
               {children}
               <Footer />
             </div>
-
-            </ToastProvider>
-          </AuthProvider>
+          </ToastProvider>
         </ThemeProvider>
       </body>
     </html>

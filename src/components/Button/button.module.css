@@ -1,6 +1,7 @@
 .container {
-
+  display: inline-block;
 }
+
 .button {
   padding: 7px;
   cursor: pointer; 
@@ -23,19 +24,4 @@
 }
 .var2{
  background: linear-gradient(to right,rgb(64, 64, 143),rgb(253, 35, 35) );
-}
-
-
-.login{
-    padding: 3px;
-    font-weight: bold;
-    font-size: medium;
-    background: transparent; 
-      
-}
-
-.logout{
-    padding: 3px;
-    font-weight: bold;
-      font-size: medium;
 }
