@@ -21,11 +21,11 @@ const links = [
     title: "About",
     url: "/about",
   },
-  {
-    id: 4,
-    title: "Contact",
-    url: "/contact",
-  },
+  // {
+  //   id: 4,
+  //   title: "Contact",
+  //   url: "/contact",
+  // },
 ];
 const Navbar = () => {
   const pathname = usePathname();
