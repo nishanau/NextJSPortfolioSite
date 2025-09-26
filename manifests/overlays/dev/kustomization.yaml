@@ -1,0 +1,8 @@
+---
+namespace: dev
+resources:
+  - ../../base
+  - ingress.yaml
+images:
+  - name: docker.io/nishans0/next-portfolio
+    newTag: edge

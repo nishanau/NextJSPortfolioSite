@@ -1,0 +1,16 @@
+---
+namespace: stage
+resources:
+  - ../../base
+  - ingress.yaml
+images:
+  - name: docker.io/nishans0/next-portfolio
+    newTag: v0.0.1
+patches:
+  - target:
+      kind: Deployment
+      name: next-portfolio
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2

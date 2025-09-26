@@ -1,0 +1,122 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: next-portfolio
+  labels:
+    app: next-portfolio
+spec:
+  replicas: 2  # 2 replicas for high availability
+  revisionHistoryLimit: 5  # keep last 5 revisions for rollback
+  # pod must be ready for at least 10 seconds before being considered
+  # available
+  minReadySeconds: 10
+  # automatically mount the service account token, since the app doesnt
+  # need to interact with API server, we disable it for security
+  automountServiceAccountToken: false
+  strategy:
+    # updates without downtime, other option is Recreate which kills
+    # old pods first
+    type: RollingUpdate
+    rollingUpdate:  # only applicable if type is RollingUpdate
+      maxUnavailable: 1  # at most 1 pod can be unavailable during update
+      maxSurge: 1  # at most 1 extra pod can be created during update
+  selector:
+    matchLabels:
+      app: next-portfolio  # must match labels in template below
+  template:
+    metadata:
+      labels:
+        app: next-portfolio  # must match selector above
+      # used for storing non-identifying information, here we use it for
+      # tracking deployment time
+      annotations:
+        prometheus.io/scrape: "true"  # enables prometheus scraping
+        prometheus.io/port: "3000"  # port on which prometheus will scrape
+        prometheus.io/path: "/metrics"  # path for prometheus scraping
+    spec:
+      # service account for the pod, if we use default, it has more
+      # privileges than needed
+      serviceAccountName: next-portfolio-sa
+      # time to wait before forcefully killing the pod
+      terminationGracePeriodSeconds: 20
+      containers:
+        # name of the first container, more options include
+        # imagePullPolicy, command, args, workingDir, volumeMounts
+        - name: next-portfolio
+          image: docker.io/nishans0/next-portfolio:v0.0.1
+          ports:
+            - containerPort: 3000  # port on which the container is listening
+          env:
+            # environment variable to set the environment
+            - name: NODE_ENV
+              value: "production"  # value of the environment variable
+          # checks if the app has started, if not, it will be restarted
+          startUpProbe:
+            # HTTP GET request to the root path on port 3000 more options
+            # can be protocol, host, scheme
+            httpGet:
+              path: "/"
+              port: 3000
+            initialDelaySeconds: 5  # wait 5 seconds before starting probes
+            periodSeconds: 10  # probe every 10 seconds
+            # after 10 failures, the pod is marked as not started
+            failureThreshold: 10
+            successThreshold: 1  # after 1 success, the pod is marked as started
+          # checks if the app is ready to serve traffic
+          readinessProbe:
+            # HTTP GET request to the root path on port 3000 more options
+            # can be protocol, host, scheme
+            httpGet:
+              path: "/"
+              port: 3000
+            initialDelaySeconds: 10  # wait 10 seconds before starting probes
+            periodSeconds: 5  # probe every 5 seconds
+            # after 5 failures, the pod is marked as not ready
+            failureThreshold: 5
+            successThreshold: 2  # after 2 successes, pod is marked as ready
+          # checks if the app is alive, if not, it will be restarted
+          livenessProbe:
+            # HTTP GET request to the root path on port 3000 more options
+            # can be protocol, host, scheme
+            httpGet:
+              path: "/"
+              port: 3000
+            initialDelaySeconds: 15  # wait 15 seconds before starting probes
+            periodSeconds: 20  # probe every 20 seconds
+            # after 5 failures, the pod is marked as not alive
+            failureThreshold: 5
+            successThreshold: 2  # after 2 successes, pod is marked as alive
+          resources:  # resource requests and limits
+            requests:  # minimum resources required
+              memory: "256Mi"
+              cpu: "250m"
+            limits:  # maximum resources allowed
+              memory: "512Mi"
+              cpu: "500m"
+          # security options for the container. We are giving UID and GID
+          # to run the container as non-root user for security
+          securityContext:
+            # run the container as user with UID 1000 (Convention used,
+            # 1001-1999 for app users)
+            runAsUser: 1000
+            runAsNonRoot: true  # ensure container is run as non-root user
+            runAsGroup: 3000  # run container as group with GID 3000
+            # files created by the container will be owned by group with
+            # GID 2000
+            fsGroup: 2000
+            allowPrivilegeEscalation: false  # do not allow privilege escalation
+            capabilities:  # drop all capabilities for security
+              drop: ["ALL"]
+            # make the root filesystem read-only for security
+            readOnlyRootFilesystem: true
+          lifecycle:  # hooks for container lifecycle events
+            postStart:  # hook to run after the container has started
+              exec:  # execute a command
+                # simple echo command, can be replaced with any script
+                command: ["sh", "-c", "echo Container started"]
+            preStop:  # hook to run before the container is stopped
+              exec:  # execute a command
+                # sleep for 10 seconds to allow in-flight requests to
+                # complete
+                command: ["sh", "-c", "sleep 10"]
