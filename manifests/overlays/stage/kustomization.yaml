@@ -1,7 +1,7 @@
 ---
 namespace: stage
 resources:
-  - ../../base
+  - ../base
   - ingress.yaml
 images:
   - name: docker.io/nishans0/next-portfolio
