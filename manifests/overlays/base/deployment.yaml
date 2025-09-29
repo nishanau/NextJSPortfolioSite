@@ -50,7 +50,7 @@ spec:
         # imagePullPolicy, command, args, workingDir, volumeMounts
         - name: next-portfolio
           image: docker.io/nishans0/next-portfolio:v0.0.1
-          imagePullPolicy: always  # pull image always
+          imagePullPolicy: Always  # pull image always
           ports:
             - containerPort: 3000  # port on which the container is listening
           env:
