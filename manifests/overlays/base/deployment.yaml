@@ -36,10 +36,10 @@ spec:
       # privileges than needed
       serviceAccountName: next-portfolio-sa
       securityContext:
-        fsGroup: 2000  # files created by containers will be owned by this GID
+        fsGroup: 20001  # files created by containers will be owned by this GID
         runAsNonRoot: true  # ensure pod is run as non-root user
-        runAsUser: 1000  # run pod as user with UID 1000
-        runAsGroup: 3000  # run pod as group with GID 3000
+        runAsUser: 10001  # run pod as user with UID 10001
+        runAsGroup: 30001  # run pod as group with GID 30001
       # automatically mount the service account token, since the app doesnt
       # need to interact with API server, we disable it for security
       automountServiceAccountToken: false
@@ -50,6 +50,7 @@ spec:
         # imagePullPolicy, command, args, workingDir, volumeMounts
         - name: next-portfolio
           image: docker.io/nishans0/next-portfolio:v0.0.1
+          imagePullPolicy: always  # pull image always
           ports:
             - containerPort: 3000  # port on which the container is listening
           env:
@@ -68,18 +69,6 @@ spec:
             # after 10 failures, the pod is marked as not started
             failureThreshold: 10
             successThreshold: 1  # after 1 success, the pod is marked as started
-          # checks if the app is ready to serve traffic
-          readinessProbe:
-            # HTTP GET request to the root path on port 3000 more options
-            # can be protocol, host, scheme
-            httpGet:
-              path: "/"
-              port: 3000
-            initialDelaySeconds: 10  # wait 10 seconds before starting probes
-            periodSeconds: 5  # probe every 5 seconds
-            # after 5 failures, the pod is marked as not ready
-            failureThreshold: 5
-            successThreshold: 2  # after 2 successes, pod is marked as ready
           # checks if the app is alive, if not, it will be restarted
           livenessProbe:
             # HTTP GET request to the root path on port 3000 more options
@@ -96,9 +85,11 @@ spec:
             requests:  # minimum resources required
               memory: "256Mi"
               cpu: "250m"
+              ephemeral-storage: "1Gi"
             limits:  # maximum resources allowed
               memory: "512Mi"
               cpu: "500m"
+              ephemeral-storage: "2Gi"
           # security options for the container. We are giving UID and GID
           # to run the container as non-root user for security
           securityContext:
