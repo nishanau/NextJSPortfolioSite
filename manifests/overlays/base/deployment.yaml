@@ -80,7 +80,7 @@ spec:
             periodSeconds: 20  # probe every 20 seconds
             # after 5 failures, the pod is marked as not alive
             failureThreshold: 5
-            successThreshold: 2  # after 2 successes, pod is marked as alive
+            successThreshold: 1  # after 1 success, pod is marked as alive
           resources:  # resource requests and limits
             requests:  # minimum resources required
               memory: "256Mi"
