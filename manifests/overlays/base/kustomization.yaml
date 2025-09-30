@@ -3,3 +3,4 @@ resources:
   - deployment.yaml
   - service.yaml
   - pdb.yaml
+  - sa.yaml
