@@ -1,6 +1,6 @@
 package main
 
-deny[msg] {
+deny contains msg if {
   input.kind == "Deployment"
   some c
   container := input.spec.template.spec.containers[c]
@@ -8,7 +8,7 @@ deny[msg] {
   msg := sprintf("Container %s in Deployment %s has no CPU limit", [container.name, input.metadata.name])
 }
 
-deny[msg] {
+deny contains msg if {
   input.kind == "Deployment"
   some c
   container := input.spec.template.spec.containers[c]

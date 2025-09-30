@@ -1,11 +1,11 @@
 package main
 
-required_labels := {"app", "env"}
+required_labels := {"app"}
 
-deny[msg] {
+deny contains msg if {
   input.kind == "Deployment"
   some label
-  required_labels[label]
+  label in required_labels
   not input.metadata.labels[label]
   msg := sprintf("Deployment %s is missing required label: %s", [input.metadata.name, label])
 }

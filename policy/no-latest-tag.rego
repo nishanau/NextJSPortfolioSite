@@ -1,6 +1,6 @@
 package main
 
-deny[msg] {
+deny contains msg if {
   input.kind == "Deployment"
   some c
   container := input.spec.template.spec.containers[c]
