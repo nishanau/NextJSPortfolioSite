@@ -11,16 +11,14 @@ Prepare all nodes with consistent OS settings, disable swap, apply sysctl parame
 | `sudo apt update && sudo apt -y upgrade` | Update packages | Ensure OS is patched | `apt list --upgradable` |
 | `sudo swapoff -a` | Disable swap temporarily | Scheduler needs no swap | `free -h` shows 0 swap |
 | `sudo sed -i '/ swap / s/^/#/' /etc/fstab` | Disable swap permanently by commenting the swap line in /etc/fstab file | Prevent swap after reboot | `cat /etc/fstab` |
-| ```bash 
-cat <<EOF \| sudo tee /etc/modules-load.d/containerd.conf 
-overlay 
-br_netfilter 
-EOF
-``` | Load `overlay` & `br_netfilter` | Needed for networking | `lsmod | grep br_netfilter` |
-| `/etc/sysctl.d/99-kubernetes-cri.conf` | Enable iptables, IPv6, and forwarding | Needed for services and routing | `sysctl net.ipv4.ip_forward` = 1 |
+| `echo -e "overlay\nbr_netfilter" \| sudo tee /etc/modules-load.d/containerd.conf`| Load `overlay` & `br_netfilter` | Needed for networking | `lsmod | grep br_netfilter` |
+| `sudo modprobe overlay && sudo modprobe br_netfilter` | Load kernel modules | Needed for container networking and filesystems | `lsmod | grep br_netfilter` |
+| `echo -e "net.bridge.bridge-nf-call-iptables = 1\nnet.bridge.bridge-nf-call-ip6tables = 1\nnet.ipv4.ip_forward = 1" \| sudo tee /etc/sysctl.d/99-kubernetes-cri.conf` | Enable iptables, IPv6, and forwarding | Needed for services and routing | `sysctl net.ipv4.ip_forward` = 1 |
+| `sudo sysctl --system ` | Apply sysctl settings | Enable ip_forward and bridge netfilter | `sysctl net.ipv4.ip_forward` = 1 |
 | `sudo apt install -y containerd` | Install container runtime | Required for Pods | `systemctl status containerd` |
-
-Edit `/etc/containerd/config.toml`: set `SystemdCgroup=true`. Restart and enable containerd.
+| `ssudo mkdir -p /etc/containerd && containerd config default \| sudo tee /etc/containerd/config.toml >/dev/null  ` | Create default config for containerd and put it in config.toml | Configuration for containerd to run | cat config.toml should have configurations sudo |
+| Edit `/etc/containerd/config.toml` and set `SystemdCgroup=true` | Align cgroup drivers | Kubelet & containerd must use same cgroup driver | `grep SystemdCgroup /etc/containerd/config.toml` |
+| `sudo systemctl restart/enable containerd` | Restart containderd and enable it so it runs automatically | Need containerd to run automatically for kubernetes to function properly | Systemctl status containerd shoud show enabled and active |
 
 **Tip:** Use `grep –nF 'pattern' filename` to find line numbers.
 
