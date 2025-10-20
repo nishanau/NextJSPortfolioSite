@@ -87,7 +87,7 @@ jobs:
         #curl -fsSL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar -xz && sudo mv kubeconform /usr/local/bin/
 
         # Install conftest (OPA policy engine)
-        curl -fsSL https://github.com/open-policy-agent/conftest/releases/latest/download/conftest_Linux_x86_64.tar.gz | tar -xz && sudo mv conftest /usr/local/bin/
+        curl -fsSL --retry 5 -H "Authorization: Bearer ${{ github.token }}" -H "User-Agent: gha" https://github.com/open-policy-agent/conftest/releases/latest/download/conftest_Linux_x86_64.tar.gz | tar -xz && sudo mv conftest /usr/local/bin/
 
         # Install kube-score (best practice scanner)
         curl -sL https://github.com/zegl/kube-score/releases/latest/download/kube-score_ubuntu_amd64 -o kube-score
