@@ -43,23 +43,16 @@ Install `kubelet`, `kubeadm`, and `kubectl`. These form the core of Kubernetes.
 ## 3. Control Plane Initialization
 Initialize control-plane and configure networking.
 
-```bash
-sudo kubeadm init --apiserver-advertise-address=192.168.101.89 --pod-network-cidr=10.244.0.0/16
-```
-
 **Reflection:** Similar to promoting a domain controller — defines the cluster brain.
 
-Configure kubectl:
-```bash
-mkdir -p $HOME/.kube
-sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-sudo chown $(id -u):$(id -g) $HOME/.kube/config
-```
+| Command | Purpose | Why Necessary | Verification |
+|----------|----------|----------------|---------------|
+| `sudo kubeadm init --apiserver-advertise-address=192.168.101.89 --pod-network-cidr=10.244.0.0/16` | Initialize the control-plane node and set up cluster core components | Bootstraps the control plane by creating the API server, etcd, controller manager, scheduler, and certificates. It also installs core add-ons like DNS and kube-proxy. Without initialization, worker nodes cannot join and the cluster cannot function. | `kubectl get nodes` after setup should show the control-plane node in `NotReady` state until networking is applied. |
+| `kubeadm join 192.168.101.89:6443 --token <token> --discovery-token-ca-cert-hash <hash>` | Join worker nodes to the cluster | Connects a node to the control-plane using a secure token and CA hash, allowing it to register as a worker and start running workloads. | `kubectl get nodes` should show the new node after a few minutes. Use `kubeadm token list` to check tokens or `kubeadm token create --print-join-command` to generate a new one if expired. |
+| `mkdir -p $HOME/.kube`<br>`sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config`<br>`sudo chown $(id -u):$(id -g) $HOME/.kube/config` | Configure `kubectl` for the current user | Copies the admin kubeconfig to the user’s home directory and adjusts ownership so `kubectl` commands can be executed without `sudo`. Without this, you’d need elevated privileges for every command. | `kubectl get nodes` should return the cluster’s nodes successfully without `sudo`. |
+| `kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/refs/heads/master/Documentation/kube-flannel.yml` | Deploy the Flannel CNI plugin (Pod network) | Installs a Container Network Interface (CNI) to enable pod-to-pod communication across nodes. Without it, pods cannot communicate between nodes, keeping nodes in `NotReady` state. | `kubectl -n kube-system get pods -o wide` should show `flannel` pods running, and `kubectl get nodes` should show nodes as `Ready`. |
 
-Deploy Flannel:
-```bash
-kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
-```
+###At this point, all the nodes should be in the cluster connected. 
 
 Verify node readiness:
 ```bash
@@ -71,12 +64,12 @@ kubectl get nodes
 ## 4. Cluster Health and Sanity Checks
 Test inter-pod connectivity and DNS resolution.
 
-```bash
-kubectl exec -it podA -- ping -c3 <podB_IP>
-kubectl exec -it <pod> -- nslookup kubernetes.default
-kubectl create deploy echo --image=hashicorp/http-echo -- /http-echo -text="ok"
-kubectl expose deploy echo --port=5678
-kubectl exec -it <pod> -- wget -qO- http://echo:5678
+```markdown
+| Command | Purpose | Why Necessary | Verification |
+|----------|----------|----------------|---------------|
+| `Pod_a=<pod_name> in node1`<br>`Pod_b_ip=<pod_ip> of pod in node2`<br>`kubectl exec -it $Pod_a -- ping -c3 $Pod_b_ip` | Test Pod-to-Pod cross-node connectivity | Verifies that the cluster network (CNI) correctly routes traffic between pods on different nodes. Confirms that the network overlay (e.g., Flannel, Calico) is functioning. | Ping should succeed with no packet loss, proving cross-node communication works. |
+| `POD=$(kubectl get pod -l app=netshoot -o jsonpath='{.items[0].metadata.name}')`<br>`kubectl exec -it $POD -- nslookup kubernetes.default` | Verify DNS resolution inside the cluster | Confirms that CoreDNS is operational and that pods can resolve internal service names to ClusterIPs. Without functional DNS, services cannot communicate by name. | Should resolve `kubernetes.default` to a ClusterIP, confirming DNS health. |
+| `kubectl create deploy echo --image=hashicorp/http-echo -- /http-echo -text="ok"`<br>`kubectl expose deploy echo --port=5678`<br>`kubectl exec -it $POD -- wget -qO- http://echo:5678` | Validate Service-to-Pod routing | Ensures that Kubernetes Services correctly route traffic to backend pods using cluster networking and kube-proxy. Validates internal load balancing. | Output should return `ok`, confirming service routing and pod reachability. |
 ```
 
 All tests should succeed (ping, DNS, service routing).
@@ -86,18 +79,14 @@ All tests should succeed (ping, DNS, service routing).
 ## 5. Infrastructure Installation
 Install essential tools.
 
-### Metrics Server
-```bash
-kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
-kubectl -n kube-system patch deployment metrics-server --type='json' -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]'
-```
+| Command | Purpose | Why Necessary | Verification |
+|----------|----------|----------------|---------------|
+| `Pod_a=<pod_name> in node1`<br>`Pod_b_ip=<pod_ip> of pod in node2`<br>`kubectl exec -it $Pod_a -- ping -c3 $Pod_b_ip` | Test Pod-to-Pod cross-node connectivity | Verifies that the cluster network (CNI) correctly routes traffic between pods on different nodes. Confirms that the network overlay (e.g., Flannel, Calico) is functioning. | Ping should succeed with no packet loss, proving cross-node communication works. |
+| `POD=$(kubectl get pod -l app=netshoot -o jsonpath='{.items[0].metadata.name}')`<br>`kubectl exec -it $POD -- nslookup kubernetes.default` | Verify DNS resolution inside the cluster | Confirms that CoreDNS is operational and that pods can resolve internal service names to ClusterIPs. Without functional DNS, services cannot communicate by name. | Should resolve `kubernetes.default` to a ClusterIP, confirming DNS health. |
+| `kubectl create deploy echo --image=hashicorp/http-echo -- /http-echo -text="ok"`<br>`kubectl expose deploy echo --port=5678`<br>`kubectl exec -it $POD -- wget -qO- http://echo:5678` | Validate Service-to-Pod routing | Ensures that Kubernetes Services correctly route traffic to backend pods using cluster networking and kube-proxy. Validates internal load balancing. | Output should return `ok`, confirming service routing and pod reachability. |
 
-### Ingress Controller
-```bash
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/baremetal/deploy.yaml
-```
 
-### Reset Cluster (if needed)
+### Reset Cluster (if needed or you mess up something, for example the external ip of the nodes changed which I tried fixing and messed up whole lot of things)
 ```bash
 sudo kubeadm reset -f
 sudo systemctl stop kubelet containerd
@@ -108,15 +97,92 @@ sudo ip link delete flannel.1
 
 ---
 
-## 6. Containerizing Applications
-### 6.1 Dockerfile Summary
-Multi-stage build using `node:20-alpine`:
-- Stage 1: Build → install dependencies, run `npm run build`.
-- Stage 2: Runtime → copy build artifacts, run `node server.js`.
-- Non-root user, port 3000 exposed.
+## 6. Containerizing the Apps
 
+### 6.1 Writing Dockerfiles
+
+A **Dockerfile** is a blueprint for creating a container image.  
+For my portfolio app, I used two separate **Node:20-alpine** images — one for **build** and one for **runtime**.
+
+1. In the **build stage**, I copied the `package*.json` files into `/app` and ran `npm ci` to perform a clean installation of dependencies.  
+   Using `npm ci` instead of `npm install` ensures reproducible builds and faster installs when `package-lock.json` is present.
+
+2. I then used `COPY . .` to copy the full source code (excluding files in `.dockerignore`) and ran `npm run build`, which created the production build of the app.
+
+3. In the **runtime stage**, I used another **Node:20-alpine** image for a lightweight environment.  
+   I copied only the compiled output — static, public, and standalone files — into the new image.  
+   This minimizes image size and attack surface.
+
+4. Permissions were set using:
+   ```bash
+   RUN mkdir -p .next/cache && chown -R node:node .next
+   ```
+5. I used the **USER node** directive for security (to avoid running as root) and exposed port 3000.
+6. Finally, the container runs the app using:
+   ```bash
+   CMD ["node", "server.js"]
+   ```
+
+**Dockerfile for our NextPortfolio App**
+```bash
+# Build stage
+FROM node:20-alpine AS build
+WORKDIR /app
+
+# Install dependencies
+COPY package*.json ./
+RUN npm ci
+
+# Copy all files and build
+COPY . .
+RUN npm run build
+
+# Production stage
+FROM node:20-alpine
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3000
+
+# Copy only necessary files from build stage
+COPY --from=build /app/.next/standalone ./
+COPY --from=build /app/.next/static ./.next/static
+COPY --from=build /app/public ./public
+
+# Give permission to node user
+RUN mkdir -p .next/cache && chown -R node:node .next
+
+# Run as non-root user
+USER node
+EXPOSE 3000
+
+# Start application
+CMD ["node", "server.js"]
+
+```
+   
 ### 6.2 Argo CD Setup
-Install via [official guide](https://argo-cd.readthedocs.io/en/stable/getting_started/). Convert `argocd-server` service to LoadBalancer and use MetalLB IP range `192.168.101.220–230`.
+Install via [official guide](https://argo-cd.readthedocs.io/en/stable/getting_started/). Convert `argocd-server` service to LoadBalancer (`kubectl –n argocd edit svc argocd-server`) and allocate some MetalLB IP range for example, `192.168.101.220–230`.
+
+**MetalLB Configuration (metallb-pool.yaml)**
+```yaml
+# metallb-pool.yaml
+
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: lb-pool
+  namespace: metallb-system
+spec:
+  addresses:
+    - 192.168.101.200-192.168.101.210  # make sure these are UNUSED
+
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: l2
+  namespace: metallb-system
+```
 
 Extract admin password:
 ```bash
