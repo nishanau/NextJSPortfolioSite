@@ -520,15 +520,23 @@ The above commands should output nothing for successful check.
 ```bash
 kustomize build manifests/overlays/dev | kubeconform --strict --ignore-missing-schemas
 ```
+
 Output of the first test:
+
 <img width="706" height="199" alt="Screenshot 2025-10-21 103722" src="https://github.com/user-attachments/assets/07f91273-4ef4-4e76-9c03-2198faee8ad8" />
+
+
 After fixing the issues shown the command gave exit(0) or no output which means our test passed API Schema Validation. 
 
 ####Kube Score
 Kube-score checks for best practices /safety net checks. 
 Command: `kube-score score deployment.yaml` OR `kustomize build overlays/dev | kube-score score -`
+
+
 Output of first test:
+
 <img width="804" height="639" alt="Screenshot 2025-10-21 103937" src="https://github.com/user-attachments/assets/8e1f69f1-8fcc-4906-bf37-fd4713b06441" />
+
 
 #### Policy Tests
 We used conftest to test the custom policies we created which are stored in policy folder. Some of the policies we have are as follows.
