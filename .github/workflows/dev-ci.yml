@@ -87,8 +87,19 @@ jobs:
         #curl -fsSL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar -xz && sudo mv kubeconform /usr/local/bin/
 
         # Install conftest (OPA policy engine)
-        curl -fsSL --retry 5 -H "Authorization: Bearer ${{ github.token }}" -H "User-Agent: gha" https://github.com/open-policy-agent/conftest/releases/latest/download/conftest_Linux_x86_64.tar.gz | tar -xz && sudo mv conftest /usr/local/bin/
+        # get exact asset URL for linux x86_64 tar.gz
+        ASSET_URL=$(curl -fsSL -H "Authorization: Bearer ${{ github.token }}" \
+          -H "Accept: application/vnd.github+json" \
+          https://api.github.com/repos/open-policy-agent/conftest/releases/latest \
+          | jq -r '.assets[] | select(.name|test("Linux_x86_64.*\\.tar\\.gz$")) | .browser_download_url')
+        
+        # download WITHOUT auth header (S3 signed URL sometimes 404s with extra headers)
+        curl -fL --retry 5 --retry-all-errors -o /tmp/conftest.tgz "$ASSET_URL"
+        tar -xzf /tmp/conftest.tgz
+        sudo mv conftest /usr/local/bin/conftest
 
+
+        
         # Install kube-score (best practice scanner)
         curl -sL https://github.com/zegl/kube-score/releases/latest/download/kube-score_ubuntu_amd64 -o kube-score
         chmod +x kube-score && sudo mv kube-score /usr/local/bin/
