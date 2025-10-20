@@ -21,7 +21,7 @@ spec:
   selector:
     matchLabels:
       app: next-portfolio  # must match labels in template below
-  template: # template for the pods
+  template:  # template for the pods
     metadata:
       labels:
         app: next-portfolio  # must match selector above
