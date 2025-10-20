@@ -62,7 +62,7 @@ jobs:
     - name: Configure kubeconfig
       run: |
         mkdir -p ~/.kube
-        echo "${{ secrets.KUBECONFIG_DEV }}" | base64 -d > ~/.kube/config
+        printf '%s' "${{ secrets.KUBECONFIG_DEV }}" | base64 -d > ~/.kube/config
         chmod 600 ~/.kube/config
 
     # ======================================================
@@ -73,7 +73,7 @@ jobs:
     - name: Install validation tools
       run: |
         sudo apt-get update -y
-        sudo apt-get install -y curl jq yamllint trivy
+        sudo apt-get install -y curl jq yamllint
 
         # Install kubectl (Kubernetes CLI)
         curl -sL https://dl.k8s.io/release/$(curl -sL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl -o kubectl
@@ -98,6 +98,10 @@ jobs:
         # Install yq (YAML processor, used to update tags)
         curl -sL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o yq
         chmod +x yq && sudo mv yq /usr/local/bin/yq
+
+        # Install Trivy
+        curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin v0.67.2
+        trivy --version
 
     # ======================================================
     # Step 4: Lint YAML files (basic syntax check)
