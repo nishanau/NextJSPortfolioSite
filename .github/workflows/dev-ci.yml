@@ -31,7 +31,7 @@ env:
 
   # Toolchain container (your prebuilt image)
   # Example: ghcr.io/nishans0/tools-container:2025-10-01
-  TOOLCHAIN_IMAGE: ghcr.io/nishans0/tools-container:2025-10-20
+  TOOLCHAIN_IMAGE: ghcr.io/nishanau/tools-container:2025-10-20
 
 # ----------------------------------------------------------
 # Prevent overlapping runs on the same ref
