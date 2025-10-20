@@ -24,7 +24,6 @@ on:
 # Shared environment variables for reuse in steps
 # ----------------------------------------------------------
 env:
-  IMAGE_NAME: nishans0/next-portfolio              # Docker Hub repo name
   KUSTOMIZE_DIR: manifests/overlays/dev            # Path to dev overlay folder
   IMAGE_TAG: sha-${{ github.sha }}                 # Immutable tag = current commit SHA
   DEV_NS: dev                                      # Dev namespace name (used for validation)
