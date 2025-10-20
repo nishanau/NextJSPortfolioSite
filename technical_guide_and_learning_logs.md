@@ -11,10 +11,12 @@ Prepare all nodes with consistent OS settings, disable swap, apply sysctl parame
 | `sudo apt update && sudo apt -y upgrade` | Update packages | Ensure OS is patched | `apt list --upgradable` |
 | `sudo swapoff -a` | Disable swap temporarily | Scheduler needs no swap | `free -h` shows 0 swap |
 | `sudo sed -i '/ swap / s/^/#/' /etc/fstab` | Disable swap permanently by commenting the swap line in /etc/fstab file | Prevent swap after reboot | `cat /etc/fstab` |
-| `cat <<EOF \| sudo tee /etc/modules-load.d/containerd.conf 
+| ```bash 
+cat <<EOF \| sudo tee /etc/modules-load.d/containerd.conf 
 overlay 
 br_netfilter 
-EOF` | Load `overlay` & `br_netfilter` | Needed for networking | `lsmod | grep br_netfilter` |
+EOF
+``` | Load `overlay` & `br_netfilter` | Needed for networking | `lsmod | grep br_netfilter` |
 | `/etc/sysctl.d/99-kubernetes-cri.conf` | Enable iptables, IPv6, and forwarding | Needed for services and routing | `sysctl net.ipv4.ip_forward` = 1 |
 | `sudo apt install -y containerd` | Install container runtime | Required for Pods | `systemctl status containerd` |
 
