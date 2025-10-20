@@ -92,14 +92,12 @@ jobs:
           -H "Accept: application/vnd.github+json" \
           https://api.github.com/repos/open-policy-agent/conftest/releases/latest \
           | jq -r '.assets[] | select(.name|test("Linux_x86_64.*\\.tar\\.gz$")) | .browser_download_url')
-        
         # download WITHOUT auth header (S3 signed URL sometimes 404s with extra headers)
         curl -fL --retry 5 --retry-all-errors -o /tmp/conftest.tgz "$ASSET_URL"
         tar -xzf /tmp/conftest.tgz
         sudo mv conftest /usr/local/bin/conftest
+        conftest -v
 
-
-        
         # Install kube-score (best practice scanner)
         curl -sL https://github.com/zegl/kube-score/releases/latest/download/kube-score_ubuntu_amd64 -o kube-score
         chmod +x kube-score && sudo mv kube-score /usr/local/bin/
