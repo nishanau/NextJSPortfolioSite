@@ -1,13 +1,16 @@
 # ==========================================================
-#  Workflow: CI - Dev (SHA tag + GitOps auto-update)
-#  Purpose:
-#    - Validate Kubernetes manifests and policies
-#    - Build and scan Docker image
-#    - Push image with immutable SHA tag
-#    - Auto-update dev overlay newTag → Argo CD syncs automatically
+# Workflow: CI - Dev (containerized tools + official actions)
+# Purpose:
+#   - Run fast, reproducible validations inside a prebuilt toolchain container
+#   - Build and push app images with Buildx cache
+#   - Bump Kustomize image tag to trigger Argo CD auto-sync
+# Notes:
+#   - The validation and GitOps-bump jobs run *inside* your GHCR image
+#   - The build job runs on the host runner for best performance
+#   - Pin action and image versions for reproducibility
 # ==========================================================
 
-name: CI - Dev (SHA tag + GitOps update)
+name: CI - Dev (containerized)
 
 on:
   push:
@@ -16,15 +19,22 @@ on:
     branches: [ "dev" ]
 
 # ----------------------------------------------------------
-# Shared environment variables for reuse in steps
+# Global environment. Adjust to your repo and image names.
 # ----------------------------------------------------------
 env:
-  KUSTOMIZE_DIR: manifests/overlays/dev            # Path to dev overlay folder
-  IMAGE_TAG: sha-${{ github.sha }}                 # Immutable tag = current commit SHA
-  DEV_NS: dev                                      # Dev namespace name (used for validation)
+  # App image published to Docker Hub (example)
+  IMAGE_NAME: docker.io/nishans0/next-portfolio
+  IMAGE_TAG: sha-${{ github.sha }}
+
+  # Kustomize overlay path for dev
+  KUSTOMIZE_DIR: manifests/overlays/dev
+
+  # Toolchain container (your prebuilt image)
+  # Example: ghcr.io/nishans0/tools-container:2025-10-01
+  TOOLCHAIN_IMAGE: ghcr.io/nishans0/tools-container:2025-10-20
 
 # ----------------------------------------------------------
-# Prevent multiple runs from overlapping
+# Prevent overlapping runs on the same ref
 # ----------------------------------------------------------
 concurrency:
   group: dev-ci-${{ github.ref }}
@@ -41,170 +51,141 @@ jobs:
     name: Validate manifests and policies
     runs-on: ubuntu-latest
     permissions:
-      contents: write     # allows committing back to repo
-      packages: write
-      id-token: write
+      contents: read          # checkout
+      packages: read          # pull private GHCR image if needed
+    container: ${{ env.TOOLCHAIN_IMAGE }}
 
     steps:
-    # ======================================================
-    # Step 1: Checkout repository
-    # ======================================================
-    - name: Checkout source code
-      uses: actions/checkout@v4
-      with:
-        persist-credentials: false  # we’ll manually use token for push later
+      # 1) Checkout the repo
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    # ======================================================
-    # Step 2: Configure kubeconfig (optional but recommended)
-    # ------------------------------------------------------
-    # Needed for kubectl --dry-run validation against dev cluster.
-    # Create the KUBECONFIG_DEV secret by base64-encoding ~/.kube/config.
-    # ======================================================
-    - name: Configure kubeconfig
-      run: |
-        mkdir -p ~/.kube
-        printf '%s' "${{ secrets.KUBECONFIG_DEV }}" | base64 -d > ~/.kube/config
-        chmod 600 ~/.kube/config
+      # 2) YAML lint (syntax + basic style)
+      - name: Lint YAML
+        run: yamllint -d relaxed "$KUSTOMIZE_DIR"
 
-    # ======================================================
-    # Step 3: Install CLI tools
-    # ------------------------------------------------------
-    # Installs all validators and scanners used in DevOps checks.
-    # ======================================================
-    - name: Install validation tools
-      run: |
-        sudo apt-get update -y
-        sudo apt-get install -y curl jq yamllint
+      # 3) Render manifests then validate against API schemas
+      - name: Schema validation (kubeconform)
+        run: |
+          kustomize build "$KUSTOMIZE_DIR" \
+          | kubeconform --strict --ignore-missing-schemas
 
-        # Install kubectl (Kubernetes CLI)
-        curl -sL https://dl.k8s.io/release/$(curl -sL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl -o kubectl
-        sudo install -m 0755 kubectl /usr/local/bin/kubectl
+      # 4) Policy checks with Conftest/OPA
+      - name: Policy checks (conftest)
+        run: conftest test "$KUSTOMIZE_DIR"
 
-        # Install kustomize (manifest rendering)
-        curl -s https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh | bash
-        sudo mv kustomize /usr/local/bin/
+      # 5) Best-practice scan (non-blocking)
+      - name: Best-practice analysis (kube-score)
+        run: kube-score score --ignore-test pod-networkpolicy --output-format ci "$KUSTOMIZE_DIR" || true
 
-        # Install kubeconform (schema validation)
-        curl -sL -o kubeconform.tar.gz https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz
-        tar -xzf kubeconform.tar.gz && sudo mv kubeconform /usr/local/bin/
+      # 6) Optional server-side dry-run against your dev cluster
+      #    Requires a base64 kubeconfig in secret KUBECONFIG_DEV
+      - name: Server-side dry-run (optional)
+        if: ${{ secrets.KUBECONFIG_DEV != '' && github.event_name == 'push' }}
+        run: |
+          mkdir -p ~/.kube
+          printf '%s' "${{ secrets.KUBECONFIG_DEV }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+          kustomize build "$KUSTOMIZE_DIR" | kubectl apply --dry-run=server -f -
 
-        # Install conftest (OPA policy engine)
-        curl -sL https://github.com/open-policy-agent/conftest/releases/latest/download/conftest_Linux_x86_64.tar.gz -o conftest.tgz
-        tar -xzf conftest.tgz && sudo mv conftest /usr/local/bin/
+  # ========================================================
+  # Job: build_and_push
+  # Builds and pushes the application image with Buildx cache
+  # and scans it with Trivy using the official action.
+  # ========================================================
+  build_and_push:
+    name: Build, push, and scan image
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read          # checkout
+      packages: write         # needed if you also push to GHCR
+    steps:
+      # 1) Checkout
+      - name: Checkout
+        uses: actions/checkout@v4
 
-        # Install kube-score (best practice scanner)
-        curl -sL https://github.com/zegl/kube-score/releases/latest/download/kube-score_ubuntu_amd64 -o kube-score
-        chmod +x kube-score && sudo mv kube-score /usr/local/bin/
+      # 2) Setup Buildx for multi-layer cache
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-        # Install yq (YAML processor, used to update tags)
-        curl -sL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o yq
-        chmod +x yq && sudo mv yq /usr/local/bin/yq
+      # 3) Login to Docker Hub (use your secrets)
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-        # Install Trivy
-        curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin v0.67.2
-        trivy --version
+      # 4) Build and push with GHA cache
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+            ${{ env.IMAGE_NAME }}:edge
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # Optional: build-args, platforms, sbom, provenance, etc.
 
-    # ======================================================
-    # Step 4: Lint YAML files (basic syntax check)
-    # ======================================================
-    - name: Lint YAML
-      run: yamllint -d relaxed .
+      # 5) Cache Trivy DB for faster scans
+      - name: Cache Trivy DB
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/trivy
+          key: trivy-db-${{ runner.os }}-v1
 
-    # ======================================================
-    # Step 5: Validate manifests against Kubernetes API schemas
-    # ======================================================
-    - name: Schema validation (kubeconform)
-      run: |
-        kustomize build $KUSTOMIZE_DIR | kubeconform --strict --ignore-missing-schemas
+      # 6) Scan built image with Trivy (fail on HIGH/CRITICAL)
+      - name: Trivy scan
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          vuln-type: 'os,library'
+          severity: 'HIGH,CRITICAL'
+          ignore-unfixed: true
+          exit-code: '1'
+          cache-dir: ~/.cache/trivy
 
-    # ======================================================
-    # Step 6: Policy compliance check using OPA / Conftest
-    # ======================================================
-    - name: Policy checks (conftest)
-      run: conftest test $KUSTOMIZE_DIR
+  # ========================================================
+  # Job: gitops_bump
+  # Updates the dev overlay's image tag so Argo CD auto-syncs.
+  # Runs inside the toolchain container to use yq.
+  # ========================================================
+  gitops_bump:
+    name: GitOps bump newTag
+    needs: build_and_push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write         # commit back to repo
+      packages: read
+    container: ${{ env.TOOLCHAIN_IMAGE }}
 
-    # ======================================================
-    # Step 7: Best-practice review (kube-score)
-    # ------------------------------------------------------
-    # Reports missing probes, resources, replicas, etc.
-    # '|| true' lets warnings pass without failing build.
-    # ======================================================
-    - name: Best-practice analysis (kube-score)
-      run: kube-score score --ignore-test pod-networkpolicy --output-format ci $KUSTOMIZE_DIR || true
+    steps:
+      # 1) Checkout with write-ready token
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
-    # ======================================================
-    # Step 8: Build Docker image with immutable SHA tag
-    # ======================================================
-    - name: Build Docker image
-      run: docker build -t $IMAGE_NAME:$IMAGE_TAG .
+      # 2) Update kustomization.yaml newTag to current SHA tag
+      - name: Update dev overlay image tag
+        run: |
+          yq -i '
+            (.images[] | select(.name == "'"${IMAGE_NAME}"'") | .newTag) = "'"${IMAGE_TAG}"'"
+          ' "$KUSTOMIZE_DIR/kustomization.yaml"
 
-    # ======================================================
-    # Step 9: Scan built image for vulnerabilities
-    # ======================================================
-    - name: Security scan (Trivy)
-      run: trivy image --exit-code 1 --severity HIGH,CRITICAL $IMAGE_NAME:$IMAGE_TAG
+          echo "---- Diff ----"
+          git --no-pager diff "$KUSTOMIZE_DIR/kustomization.yaml" || true
 
-    # ======================================================
-    # Step 10: Authenticate to Docker Hub
-    # ------------------------------------------------------
-    # Uses GitHub Secrets: DOCKERHUB_USERNAME / DOCKERHUB_TOKEN
-    # ======================================================
-    - name: Login to Docker Hub
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-    # ======================================================
-    # Step 11: Push both immutable (SHA) and mutable (edge) tags
-    # ------------------------------------------------------
-    # SHA tag = permanent, used for staging/promotion
-    # Edge tag = always latest dev build
-    # ======================================================
-    - name: Push Docker images
-      run: |
-        docker push $IMAGE_NAME:$IMAGE_TAG
-        docker tag $IMAGE_NAME:$IMAGE_TAG $IMAGE_NAME:edge
-        docker push $IMAGE_NAME:edge
-
-    # ======================================================
-    # Step 12: Validate manifests with cluster API (no apply)
-    # ------------------------------------------------------
-    # Ensures YAMLs are accepted by Kubernetes API server.
-    # ======================================================
-    - name: Server-side dry-run validation
-      run: kustomize build $KUSTOMIZE_DIR | kubectl apply --dry-run=server -f -
-
-    # ======================================================
-    # Step 13: GitOps bump - update dev overlay newTag and commit back
-    # ------------------------------------------------------
-    # Instead of force-syncing Argo CD, we update Git itself.
-    # Argo CD auto-sync detects the change and redeploys.
-    # ======================================================
-    - name: Update dev overlay image tag
-      if: ${{ github.event_name == 'push' }}  # skip on PR runs
-      run: |
-        # Replace newTag value with current SHA tag in kustomization.yaml
-        yq -i '
-          (.images[] | select(.name == "'"$IMAGE_NAME"'") | .newTag) = "'"$IMAGE_TAG"'"
-        ' $KUSTOMIZE_DIR/kustomization.yaml
-
-        echo "----- Updated Kustomization -----"
-        grep -A2 "images:" $KUSTOMIZE_DIR/kustomization.yaml || true
-
-    # ======================================================
-    # Step 14: Commit and push the tag bump back to dev branch
-    # ------------------------------------------------------
-    # The [skip ci] flag avoids infinite workflow loops.
-    # ======================================================
-    - name: Commit and push tag update
-      if: ${{ github.event_name == 'push' }}
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # automatically provided by GitHub
-      run: |
-        git config user.name "github-actions"
-        git config user.email "github-actions@github.com"
-        git add $KUSTOMIZE_DIR/kustomization.yaml
-        git commit -m "ci: bump dev image to $IMAGE_TAG [skip ci]" || echo "No changes to commit"
-        git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git
-        git push origin HEAD:dev
+      # 3) Commit and push (skip CI to avoid loops)
+      - name: Commit and push
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add "$KUSTOMIZE_DIR/kustomization.yaml"
+          git commit -m "ci: bump dev image to ${IMAGE_TAG} [skip ci]" || exit 0
+          git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git
+          git push origin HEAD:dev
