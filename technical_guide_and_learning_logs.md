@@ -29,13 +29,14 @@ Install `kubelet`, `kubeadm`, and `kubectl`. These form the core of Kubernetes.
 
 **Reflection:** Installing GPG keys and repositories reinforces package security principles.
 
-```bash
-sudo mkdir -p /etc/apt/keyrings
-curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
-sudo apt update && sudo apt install -y kubelet kubeadm kubectl
-sudo apt-mark hold kubelet kubeadm kubectl
-```
+| Command | Purpose | Why Necessary | Verification |
+|----------|----------|----------------|---------------|
+| `sudo apt install -y apt-transport-https ca-certificates curl gpg` | Install prereqs | Enable HTTPS repos and key management | `curl --version`, `gpg --version` |
+| `sudo mkdir -p /etc/apt/keyrings`<br>`curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key \| sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg` | Add Kubernetes repo key | Verify and trust Kubernetes packages | `ls /etc/apt/keyrings/` |
+| `echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /" \| sudo tee /etc/apt/sources.list.d/kubernetes.list` | Add Kubernetes apt repo | Source for kubeadm, kubelet, kubectl | `cat /etc/apt/sources.list.d/kubernetes.list` |
+| `sudo apt update && sudo apt install -y kubelet kubeadm kubectl` | Install Kubernetes tools | Needed to bootstrap and manage cluster | `kubeadm version`, `kubectl version --client` |
+| `sudo apt-mark hold kubelet kubeadm kubectl` | Prevent auto-updates | Avoid version mismatches across nodes | `apt-mark showhold` |
+
 
 ---
 
