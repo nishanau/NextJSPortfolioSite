@@ -126,7 +126,7 @@ jobs:
     # Step 4: Lint YAML files (basic syntax check)
     # ======================================================
     - name: Lint YAML
-      run: yamllint -d relaxed /manifests/overlays/dev
+      run: yamllint -d relaxed manifests/overlays/dev
 
     # ======================================================
     # Step 5: Validate manifests against Kubernetes API schemas
