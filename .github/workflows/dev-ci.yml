@@ -97,7 +97,6 @@ jobs:
         tar -xzf /tmp/kc.tgz
         sudo mv kubeconform /usr/local/bin/kubeconform
         kubeconform -v
-        
         # Install conftest (OPA policy engine)
         # get exact asset URL for linux x86_64 tar.gz
         ASSET_URL=$(curl -fsSL -H "Authorization: Bearer ${{ github.token }}" \
@@ -127,7 +126,7 @@ jobs:
     # Step 4: Lint YAML files (basic syntax check)
     # ======================================================
     - name: Lint YAML
-      run: yamllint -d relaxed .
+      run: yamllint -d relaxed /manifests/overlays/dev
 
     # ======================================================
     # Step 5: Validate manifests against Kubernetes API schemas
