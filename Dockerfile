@@ -24,7 +24,7 @@ COPY --from=build /app/public ./public
 # give permission to node user
 RUN mkdir -p .next/cache && chown -R node:node .next
 
-#run as root
+#run as root user
 USER node
 EXPOSE 3000
 
