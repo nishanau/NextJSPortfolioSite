@@ -12,6 +12,11 @@ on:
       - '.dockerignore'
       - '.github/workflows/app-ci.yml'
 
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+
 jobs:
   app-ci:
     uses: nishanau/ci-cd-templates/.github/workflows/ci-app.yml@main
