@@ -5,8 +5,6 @@ metadata:
   name: next-portfolio
   labels:
     app: next-portfolio
-  annotations:
-    kube-score/ignore: pod-networkpolicy,pod-readiness-probe
 spec:
   replicas: 2  # 2 replicas for high availability
   revisionHistoryLimit: 5  # keep last 5 revisions for rollback
@@ -33,6 +31,7 @@ spec:
         prometheus.io/scrape: "true"  # enables prometheus scraping
         prometheus.io/port: "3000"  # port on which prometheus will scrape
         prometheus.io/path: "/metrics"  # path for prometheus scraping
+        kube-score/ignore: pod-networkpolicy,pod-readiness-probe
     spec:  # specification of the pod
       # service account for the pod, if we use default, it has more
       # privileges than needed
