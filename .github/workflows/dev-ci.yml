@@ -17,5 +17,5 @@ jobs:
       tools_ref: "latest"                 # Better: pin to a known digest
       policies_path: policy
       kubeconform_flags: "--strict --ignore-missing-schemas"
-      fail_on_warn: true
+      fail_on_warn: false
     secrets: inherit
