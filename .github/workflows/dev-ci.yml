@@ -123,7 +123,7 @@ jobs:
     with:
       gitops_repo: nishanau/NextJSPortfolioSite
       gitops_path: manifests/overlays/${{ github.ref_name }}/kustomization.yaml
-      image_name: nishans0/next-portfolio
+      image_name: docker.io/nishans0/next-portfolio
       image_tag: ${{ needs.resolve-tag.outputs.tag }}
     secrets:
       gitops_pat: ${{ secrets.GITOPS_PAT }}
