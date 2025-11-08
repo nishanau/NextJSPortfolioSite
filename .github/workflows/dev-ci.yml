@@ -12,7 +12,7 @@ name: Dev CI (App + Manifests + GitOps Bump)
 
 on:
   push:                                # Trigger workflow when code is pushed
-    branches: [dev, stage]             # Only run on pushes to these branches
+    branches: [dev, stage, master]             # Only run on pushes to these branches
     paths:                             # Restrict trigger to specific file changes
       # Application files (trigger App CI)
       - 'src/**'
@@ -47,7 +47,7 @@ permissions:
 jobs:
   app-ci:
     # Run only if app-related files changed
-    if: ${{ github.event_name == 'push' && (
+    if: ${{ github.ref_name == 'dev' && (
              contains(join(github.event.commits.*.modified), 'src/') ||
              contains(join(github.event.commits.*.modified), 'public/') ||
              contains(join(github.event.commits.*.modified), 'package.json') ||
@@ -81,7 +81,7 @@ jobs:
            ) }}
     uses: nishanau/ci-cd-templates/.github/workflows/ci-manifests.yml@main
     with:
-      overlay_path: manifests/overlays/dev
+      overlay_path: manifests/overlays/${{ github.ref_name }}
       tools_ref: "latest"
       policies_path: policy
       kubeconform_flags: "--strict --ignore-missing-schemas"
@@ -93,12 +93,33 @@ jobs:
 # =====================================================================
   bump-gitops:
     needs: [app-ci, manifests-ci]               # Only run after both jobs complete
-    if: ${{ always() && needs.app-ci.result == 'success' && needs.manifests-ci.result == 'success' }}
-    uses: nishanau/ci-cd-templates/.github/workflows/ci-gitops-bump.yml@main
-    with:
-      gitops_repo: nishanau/NextJSPortfolioSite
-      gitops_path: manifests/overlays/dev/kustomization.yaml
-      image_name: nishans0/next-portfolio
-      image_tag: sha-${{ github.sha }}
-    secrets:
-      GITOPS_PAT: ${{ secrets.GITOPS_PAT }}
+    if: ${{ always() && (
+      (github.ref_name == 'dev' && needs.app-ci.result == 'success') ||
+      (
+        github.ref_name != 'dev' &&
+        ( !contains(needs.*, 'app-ci') || needs.app-ci.result == 'success' || needs.app-ci.result == 'skipped' ) &&
+        needs.manifests-ci.result == 'success' || needs.manifests-ci.result == 'skipped'
+      )) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve correct image tag
+        id: resolve_tag
+        run: |
+          if [[ "${{ github.ref_name }}" == "dev" ]]; then
+            TAG="sha-${{ github.sha }}"
+          elif [[ "${{ github.ref_name }}" == "stage" ]]; then
+            TAG=$(yq e '.images[] | select(.name=="nishans0/next-portfolio") | .newTag' manifests/overlays/dev/kustomization.yaml)
+          elif [[ "${{ github.ref_name }}" == "prod" ]]; then
+            TAG=$(yq e '.images[] | select(.name=="nishans0/next-portfolio") | .newTag' manifests/overlays/stage/kustomization.yaml)
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Bump GitOps overlay
+        uses: nishanau/ci-cd-templates/.github/workflows/ci-gitops-bump.yml@main
+        with:
+          gitops_repo: nishanau/NextJSPortfolioSite
+          gitops_path: manifests/overlays/${{ github.ref_name }}/kustomization.yaml
+          image_name: nishans0/next-portfolio
+          image_tag: ${{ steps.resolve_tag.outputs.tag }}
+          gitops_pat: ${{ secrets.GITOPS_PAT }}
