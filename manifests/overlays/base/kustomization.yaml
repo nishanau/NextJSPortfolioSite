@@ -4,3 +4,4 @@ resources:
   - service.yaml
   - pdb.yaml
   - sa.yaml
+  - network_policy.yaml
