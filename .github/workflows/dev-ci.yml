@@ -1,191 +1,21 @@
-# ==========================================================
-# Workflow: CI - Dev (containerized tools + official actions)
-# Purpose:
-#   - Run fast, reproducible validations inside a prebuilt toolchain container
-#   - Build and push app images with Buildx cache
-#   - Bump Kustomize image tag to trigger Argo CD auto-sync
-# Notes:
-#   - The validation and GitOps-bump jobs run *inside* your GHCR image
-#   - The build job runs on the host runner for best performance
-#   - Pin action and image versions for reproducibility
-# ==========================================================
-
-name: CI - Dev (containerized)
-
+# .github/workflows/ci.yml
+name: Manifests CI
 on:
-  push:
-    branches: [ "dev" ]
-  pull_request:
-    branches: [ "dev" ]
+  pull_request: { branches: [dev] }
+  push: { branches: [dev] }
 
-# ----------------------------------------------------------
-# Global environment. Adjust to your repo and image names.
-# ----------------------------------------------------------
-env:
-  # App image published to Docker Hub (example)
-  IMAGE_NAME: docker.io/nishans0/next-portfolio
-  IMAGE_TAG: sha-${{ github.sha }}
-
-  # Kustomize overlay path for dev
-  KUSTOMIZE_DIR: manifests/overlays/dev
-
-  # Toolchain container (your prebuilt image)
-  # Example: ghcr.io/nishans0/tools-container:2025-10-01
-  TOOLCHAIN_IMAGE: ghcr.io/nishanau/tools-container:2025-10-20
-
-# ----------------------------------------------------------
-# Prevent overlapping runs on the same ref
-# ----------------------------------------------------------
-concurrency:
-  group: dev-ci-${{ github.ref }}
-  cancel-in-progress: true
+permissions:
+  contents: read
+  packages: read
+  security-events: write
 
 jobs:
-  # ========================================================
-  # Job: validate
-  # Runs all static checks inside the prebuilt toolchain
-  # (kubectl, kustomize, kubeconform, conftest, kube-score,
-  #  yamllint, yq, trivy are already in the container)
-  # ========================================================
   validate:
-    name: Validate manifests and policies
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read          # checkout
-      packages: read          # pull private GHCR image if needed
-    container: ${{ env.TOOLCHAIN_IMAGE }}
-
-    steps:
-      # 1) Checkout the repo
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      # 2) YAML lint (syntax + basic style)
-      - name: Lint YAML
-        run: yamllint -d relaxed "$KUSTOMIZE_DIR"
-
-      # 3) Render manifests then validate against API schemas
-      - name: Schema validation (kubeconform)
-        run: |
-          kustomize build "$KUSTOMIZE_DIR" \
-          | kubeconform --strict --ignore-missing-schemas
-
-      # 4) Policy checks with Conftest/OPA
-      - name: Policy checks (conftest)
-        run: conftest test "$KUSTOMIZE_DIR"
-
-      # 5) Best-practice scan (non-blocking)
-      - name: Best-practice analysis (kube-score)
-        run: kube-score score --ignore-test pod-networkpolicy --output-format ci "$KUSTOMIZE_DIR" || true
-
-      # 6) Optional server-side dry-run against your dev cluster
-      #    Requires a base64 kubeconfig in secret KUBECONFIG_DEV
-      - name: Server-side dry-run (optional)
-        if: ${{ secrets.KUBECONFIG_DEV != '' && github.event_name == 'push' }}
-        run: |
-          mkdir -p ~/.kube
-          printf '%s' "${{ secrets.KUBECONFIG_DEV }}" | base64 -d > ~/.kube/config
-          chmod 600 ~/.kube/config
-          kustomize build "$KUSTOMIZE_DIR" | kubectl apply --dry-run=server -f -
-
-  # ========================================================
-  # Job: build_and_push
-  # Builds and pushes the application image with Buildx cache
-  # and scans it with Trivy using the official action.
-  # ========================================================
-  build_and_push:
-    name: Build, push, and scan image
-    needs: validate
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read          # checkout
-      packages: write         # needed if you also push to GHCR
-    steps:
-      # 1) Checkout
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      # 2) Setup Buildx for multi-layer cache
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      # 3) Login to Docker Hub (use your secrets)
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      # 4) Build and push with GHA cache
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: |
-            ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-            ${{ env.IMAGE_NAME }}:edge
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          # Optional: build-args, platforms, sbom, provenance, etc.
-
-      # 5) Cache Trivy DB for faster scans
-      - name: Cache Trivy DB
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/trivy
-          key: trivy-db-${{ runner.os }}-v1
-
-      # 6) Scan built image with Trivy (fail on HIGH/CRITICAL)
-      - name: Trivy scan
-        uses: aquasecurity/trivy-action@0.24.0
-        with:
-          image-ref: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-          vuln-type: 'os,library'
-          severity: 'HIGH,CRITICAL'
-          ignore-unfixed: true
-          exit-code: '1'
-          cache-dir: ~/.cache/trivy
-
-  # ========================================================
-  # Job: gitops_bump
-  # Updates the dev overlay's image tag so Argo CD auto-syncs.
-  # Runs inside the toolchain container to use yq.
-  # ========================================================
-  gitops_bump:
-    name: GitOps bump newTag
-    needs: build_and_push
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write         # commit back to repo
-      packages: read
-    container: ${{ env.TOOLCHAIN_IMAGE }}
-
-    steps:
-      # 1) Checkout with write-ready token
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      # 2) Update kustomization.yaml newTag to current SHA tag
-      - name: Update dev overlay image tag
-        run: |
-          yq -i '
-            (.images[] | select(.name == "'"${IMAGE_NAME}"'") | .newTag) = "'"${IMAGE_TAG}"'"
-          ' "$KUSTOMIZE_DIR/kustomization.yaml"
-
-          echo "---- Diff ----"
-          git --no-pager diff "$KUSTOMIZE_DIR/kustomization.yaml" || true
-
-      # 3) Commit and push (skip CI to avoid loops)
-      - name: Commit and push
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git add "$KUSTOMIZE_DIR/kustomization.yaml"
-          git commit -m "ci: bump dev image to ${IMAGE_TAG} [skip ci]" || exit 0
-          git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git
-          git push origin HEAD:dev
+    uses: nishanau/ci-cd-templates/.github/workflows/ci-manifests.yml@v1
+    with:
+      overlay_path: manifests/overlays/dev
+      tools_ref: "latest"                 # Better: pin to a known digest
+      policies_path: policy
+      kubeconform_flags: "--strict --ignore-missing-schemas"
+      fail_on_warn: true
+    secrets: inherit
