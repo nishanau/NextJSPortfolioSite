@@ -2,19 +2,17 @@
 #  Workflow: Dev CI (App + Manifests + GitOps Bump)
 #  ---------------------------------------------------------------------
 #  Purpose:
-#    - Run App CI when app code or config changes
+#    - Run App CI when app code/config changes
 #    - Run Manifests CI when infra YAML/policy changes
-#    - Bump GitOps repo tag only if BOTH succeed
-#    - Keeps builds efficient by skipping unnecessary jobs
+#    - Bump image tag in manifests when both succeed
 # =====================================================================
 
 name: Dev CI (App + Manifests + GitOps Bump)
 
 on:
-  push:                                # Trigger workflow when code is pushed
-    branches: [dev, stage, master]             # Only run on pushes to these branches
-    paths:                             # Restrict trigger to specific file changes
-      # Application files (trigger App CI)
+  push:
+    branches: [dev, stage, master]
+    paths:
       - 'src/**'
       - 'public/**'
       - 'package.json'
@@ -25,49 +23,69 @@ on:
       - 'eslint.config.mjs'
       - 'jsconfig.json'
       - 'tsconfig.json'
-
-      # Kubernetes manifests & policies (trigger Manifests CI)
       - 'manifests/**'
       - 'policy/**'
-
-      # CI configuration
       - '.github/workflows/dev-ci.yml'
 
-# ---------------------------------------------------------------------
-#  Permissions
-# ---------------------------------------------------------------------
 permissions:
-  contents: write                      # Needed for committing tag bumps
-  packages: write                      # Push images to registry
-  security-events: write               # Upload Trivy scan results (SARIF)
+  contents: write
+  packages: write
+  security-events: write
 
-# =====================================================================
-#  JOB 1: APP CI - Build, Test, Scan, and Push Docker Image
-# =====================================================================
 jobs:
+  # =====================================================================
+  #  JOB 0: DETECT CHANGED FILES
+  # =====================================================================
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+      manifests: ${{ steps.filter.outputs.manifests }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            app:
+              - 'src/**'
+              - 'public/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'Dockerfile'
+              - '.dockerignore'
+              - 'next.config.mjs'
+              - 'eslint.config.mjs'
+              - 'jsconfig.json'
+              - 'tsconfig.json'
+            manifests:
+              - 'manifests/**'
+              - 'policy/**'
+
+  # =====================================================================
+  #  JOB 1: APP CI - Build, Test, Scan, Push Image
+  # =====================================================================
   app-ci:
-    # Run only if app-related files changed
-    if: ${{ github.ref_name == 'dev' }}
+    needs: [changes]
+    if: ${{ needs.changes.outputs.app == 'true' && github.ref_name == 'dev' }}
     uses: nishanau/ci-cd-templates/.github/workflows/ci-app.yml@main
     with:
-      image_name: nishans0/next-portfolio       # Docker image name (Docker Hub)
-      context: .                                # Build context (root)
-      dockerfile: ./Dockerfile                  # Path to Dockerfile
-      push_image: true                          # Push built image to registry
-      run_tests: true                           # Run defined tests
+      image_name: nishans0/next-portfolio
+      context: .
+      dockerfile: ./Dockerfile
+      push_image: true
+      run_tests: true
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
-# =====================================================================
-#  JOB 2: MANIFESTS CI - Validate YAML and Policies
-# =====================================================================
+  # =====================================================================
+  #  JOB 2: MANIFESTS CI - Validate YAML & Policies
+  # =====================================================================
   manifests-ci:
-    # Run only if Kubernetes manifests or policies changed
-    if: ${{ github.event_name == 'push' && (
-             contains(join(github.event.commits.*.modified), 'manifests/') ||
-             contains(join(github.event.commits.*.modified), 'policy/')
-           ) }}
+    needs: [changes]
+    if: ${{ needs.changes.outputs.manifests == 'true' }}
     uses: nishanau/ci-cd-templates/.github/workflows/ci-manifests.yml@main
     with:
       overlay_path: manifests/overlays/${{ github.ref_name }}
@@ -77,9 +95,9 @@ jobs:
       fail_on_warn: false
     secrets: inherit
 
-# =====================================================================
-#  JOB 3A: RESOLVE IMAGE TAG
-# =====================================================================
+  # =====================================================================
+  #  JOB 3A: RESOLVE IMAGE TAG
+  # =====================================================================
   resolve-tag:
     runs-on: ubuntu-latest
     needs: [app-ci, manifests-ci]
@@ -92,24 +110,24 @@ jobs:
       )) }}
     steps:
       - uses: actions/checkout@v4
-  
+
       - id: resolve_tag
         run: |
           if [[ "${{ github.ref_name }}" == "dev" ]]; then
             TAG="sha-${{ github.sha }}"
           elif [[ "${{ github.ref_name }}" == "stage" ]]; then
-            TAG=$(yq e '.images[] | select(.name=="nishans0/next-portfolio") | .newTag' manifests/overlays/dev/kustomization.yaml)
-          elif [[ "${{ github.ref_name }}" == "prod" ]]; then
-            TAG=$(yq e '.images[] | select(.name=="nishans0/next-portfolio") | .newTag' manifests/overlays/stage/kustomization.yaml)
+            TAG=$(yq e '.images[] | select(.name=="docker.io/nishans0/next-portfolio") | .newTag' manifests/overlays/dev/kustomization.yaml)
+          elif [[ "${{ github.ref_name }}" == "master" || "${{ github.ref_name }}" == "prod" ]]; then
+            TAG=$(yq e '.images[] | select(.name=="docker.io/nishans0/next-portfolio") | .newTag' manifests/overlays/stage/kustomization.yaml)
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
-  
+
     outputs:
       tag: ${{ steps.resolve_tag.outputs.tag }}
 
-# =====================================================================
-#  JOB 3B: GITOPS BUMP - Update Image Tag in GitOps Repo
-# =====================================================================
+  # =====================================================================
+  #  JOB 3B: GITOPS BUMP - Update Image Tag in Manifest
+  # =====================================================================
   bump-gitops:
     needs: [app-ci, manifests-ci, resolve-tag]
     if: ${{ always() && (
@@ -121,7 +139,6 @@ jobs:
       )) }}
     uses: nishanau/ci-cd-templates/.github/workflows/ci-gitops-bump.yml@main
     with:
-      gitops_repo: nishanau/NextJSPortfolioSite
       gitops_path: manifests/overlays/${{ github.ref_name }}/kustomization.yaml
       image_name: docker.io/nishans0/next-portfolio
       image_tag: ${{ needs.resolve-tag.outputs.tag }}
