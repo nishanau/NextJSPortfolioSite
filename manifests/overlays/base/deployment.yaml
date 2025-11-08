@@ -102,6 +102,8 @@ spec:
           # security options for the container. We are giving UID and GID
           # to run the container as non-root user for security
           securityContext:
+            seccompProfile:
+              type: RuntimeDefault
             allowPrivilegeEscalation: false  # do not allow privilege escalation
             capabilities:  # drop all capabilities for security
               drop: ["ALL"]
