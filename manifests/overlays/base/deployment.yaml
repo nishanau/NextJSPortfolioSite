@@ -71,6 +71,14 @@ spec:
             failureThreshold: 10
             successThreshold: 1  # after 1 success, the pod is marked as started
           # checks if the app is alive, if not, it will be restarted
+          readinessProbe:
+            httpGet:
+              path: "/"
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
           livenessProbe:
             # HTTP GET request to the root path on port 3000 more options
             # can be protocol, host, scheme
