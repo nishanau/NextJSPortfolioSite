@@ -37,7 +37,7 @@ on:
 #  Permissions for the workflow
 # ---------------------------------------------------------------------
 permissions:
-  contents: read                   # Allow reading repository content
+  contents: write                   # Allow reading repository content
   packages: write                  # Allow pushing images (if using GHCR)
   security-events: write           # Allow uploading Trivy scan results (SARIF format)
 
