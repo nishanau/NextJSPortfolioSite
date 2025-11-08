@@ -47,18 +47,7 @@ permissions:
 jobs:
   app-ci:
     # Run only if app-related files changed
-    if: ${{ github.ref_name == 'dev' && (
-             contains(join(github.event.commits.*.modified), 'src/') ||
-             contains(join(github.event.commits.*.modified), 'public/') ||
-             contains(join(github.event.commits.*.modified), 'package.json') ||
-             contains(join(github.event.commits.*.modified), 'package-lock.json') ||
-             contains(join(github.event.commits.*.modified), 'Dockerfile') ||
-             contains(join(github.event.commits.*.modified), '.dockerignore') ||
-             contains(join(github.event.commits.*.modified), 'next.config.mjs') ||
-             contains(join(github.event.commits.*.modified), 'eslint.config.mjs') ||
-             contains(join(github.event.commits.*.modified), 'jsconfig.json') ||
-             contains(join(github.event.commits.*.modified), 'tsconfig.json')
-           ) }}
+    if: ${{ github.ref_name == 'dev' }}
     uses: nishanau/ci-cd-templates/.github/workflows/ci-app.yml@main
     with:
       image_name: nishans0/next-portfolio       # Docker image name (Docker Hub)
