@@ -6,3 +6,4 @@ resources:
 images:
   - name: docker.io/nishans0/next-portfolio
     newTag: sha-c4fc18812a1b21aa54adfb8b088dc72b59438f51
+
