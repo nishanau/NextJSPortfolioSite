@@ -1,8 +1,18 @@
 # .github/workflows/ci.yml
 name: Manifests CI
 on:
-  pull_request: { branches: [dev] }
-  push: { branches: [dev] }
+  pull_request:
+    branches: [dev]
+    paths:
+      - 'manifests/**'
+      - 'policy/**'
+      - '.github/workflows/dev-ci.yml'
+  push:
+    branches: [dev]
+    paths:
+      - 'manifests/**'
+      - 'policy/**'
+      - '.github/workflows/dev-ci.yml'
 
 permissions:
   contents: read
