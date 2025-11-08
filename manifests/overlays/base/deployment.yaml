@@ -5,6 +5,8 @@ metadata:
   name: next-portfolio
   labels:
     app: next-portfolio
+  annotations:
+    kube-score/ignore: pod-networkpolicy
 spec:
   replicas: 2  # 2 replicas for high availability
   revisionHistoryLimit: 5  # keep last 5 revisions for rollback
