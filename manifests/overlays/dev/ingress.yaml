@@ -1,9 +1,9 @@
 ---
-# checkov:skip=CKV_K8S_21 "Namespace will be injected by Argo CD overlay"
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: next-portfolio
+  namespace: dev
   annotations:
     kubernetes.io/ingress.class: nginx
 spec:
