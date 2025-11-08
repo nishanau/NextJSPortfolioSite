@@ -31,7 +31,7 @@ spec:
         prometheus.io/scrape: "true"  # enables prometheus scraping
         prometheus.io/port: "3000"  # port on which prometheus will scrape
         prometheus.io/path: "/metrics"  # path for prometheus scraping
-        kube-score/ignore: pod-networkpolicy,pod-readiness-probe
+        kube-score/ignore: pod-networkpolicy,pod-probes-identical  # ignore these checks
     spec:  # specification of the pod
       # service account for the pod, if we use default, it has more
       # privileges than needed
