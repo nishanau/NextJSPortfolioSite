@@ -30,7 +30,7 @@ const Portfolio = () => {
           </Link>
 
           <Link href="/portfolio/automation" className={styles.galleryItems}>
-            <span className={styles.galleryTitle}>Automation </span>
+            <span className={styles.galleryTitle}>Automation</span>
           </Link>
         </div>
       </div>
