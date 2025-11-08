@@ -1,31 +1,98 @@
-# .github/workflows/ci.yml
-name: Manifests CI
+# =====================================================================
+#  Workflow: Dev CI (App + Manifests + GitOps Bump)
+#  ---------------------------------------------------------------------
+#  Purpose:
+#    - Run app CI when app code changes
+#    - Run manifests CI when infra YAML/policy changes
+#    - Bump GitOps repo tag only if BOTH succeed
+#    - Keeps builds efficient by avoiding unnecessary runs
+# =====================================================================
+
+name: Dev CI (App + Manifests + GitOps Bump)
+
 on:
-  pull_request:
-    branches: [dev]
-    paths:
-      - 'manifests/**'
-      - 'policy/**'
-      - '.github/workflows/dev-ci.yml'
-  push:
-    branches: [dev]
-    paths:
-      - 'manifests/**'
-      - 'policy/**'
-      - '.github/workflows/dev-ci.yml'
+  push:                            # Trigger workflow when code is pushed
+    branches: [dev, stage]                # Only run this workflow on pushes to the 'dev' branch
+    paths:                         # Restrict trigger to specific file changes
+      # Application files (trigger App CI)
+      - 'src/**'                   # Frontend source code
+      - 'public/**'                # Static assets
+      - 'package.json'             # Dependency definitions
+      - 'package-lock.json'        # Locked dependency versions
+      - 'Dockerfile'               # Container build configuration
+      - '.dockerignore'            # Docker context exclusions
+      - 'next.config.mjs'
+      - 'eslint.config.mjs'
+      - 'jsconfig.json'
+      - 'tsconfig.json'
 
+      # Kubernetes manifests & policies (trigger Manifests CI)
+      - 'manifests/**'             # K8s deployment/config YAMLs
+      - 'policy/**'                # Rego or OPA policy files
+
+      # CI configuration
+      - '.github/workflows/dev-ci.yml'  # Re-run CI when workflow logic changes
+
+# ---------------------------------------------------------------------
+#  Permissions for the workflow
+# ---------------------------------------------------------------------
 permissions:
-  contents: read
-  packages: read
-  security-events: write
+  contents: read                   # Allow reading repository content
+  packages: write                  # Allow pushing images (if using GHCR)
+  security-events: write           # Allow uploading Trivy scan results (SARIF format)
 
+# =====================================================================
+#  JOB 1: APP CI - Build, Test, Scan, and Push Docker Image
+# =====================================================================
 jobs:
-  validate:
-    uses: nishanau/ci-cd-templates/.github/workflows/ci-manifests.yml@main
+  app-ci:
+    # Run this job only if application-related files changed in the commit
+    if: ${{ github.event_name == 'push' && (
+             contains(join(github.event.commits.*.modified), 'src/') ||
+             contains(join(github.event.commits.*.modified), 'Dockerfile') ||
+             contains(join(github.event.commits.*.modified), 'package.json')
+           ) }}
+    uses: nishanau/ci-cd-templates/.github/workflows/ci-app.yml@main  # Call reusable App CI workflow
     with:
-      overlay_path: manifests/overlays/dev
-      tools_ref: "latest"                 # Better: pin to a known digest
-      policies_path: policy
-      kubeconform_flags: "--strict --ignore-missing-schemas"
-      fail_on_warn: false
-    secrets: inherit
+      image_name: nishans0/next-portfolio    # Docker image name (Docker Hub repository)
+      context: .                             # Build context (root of app repo)
+      dockerfile: ./Dockerfile               # Path to Dockerfile
+      push_image: true                       # Push built image to registry
+      run_tests: true                        # Run any defined unit/integration tests
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}  # Auth for Docker Hub
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}        # Auth token for push access
+
+# =====================================================================
+#  JOB 2: MANIFESTS CI - Validate YAML and Policies
+# =====================================================================
+  manifests-ci:
+    # Run this job only if Kubernetes manifests or policy files changed
+    if: ${{ github.event_name == 'push' && (
+             contains(join(github.event.commits.*.modified), 'manifests/') ||
+             contains(join(github.event.commits.*.modified), 'policy/')
+           ) }}
+    uses: nishanau/ci-cd-templates/.github/workflows/ci-manifests.yml@main  # Reusable validation workflow
+    with:
+      overlay_path: manifests/overlays/dev      # Directory containing dev overlay
+      tools_ref: "latest"                       # Version of tools container to use
+      policies_path: policy                     # Path to Rego policy directory
+      kubeconform_flags: "--strict --ignore-missing-schemas"  # Validation flags
+      fail_on_warn: false                       # Don’t fail build on warnings
+    secrets: inherit                            # Pass same secrets from calling workflow
+
+# =====================================================================
+#  JOB 3: GITOPS BUMP - Update Image Tag in GitOps Repo
+# =====================================================================
+  bump-gitops:
+    needs: [app-ci, manifests-ci]               # Run only after both jobs complete
+    # Run only if BOTH jobs succeeded successfully
+    if: ${{ always() && needs.app-ci.result == 'success' && needs.manifests-ci.result == 'success' }}
+    uses: nishanau/ci-cd-templates/.github/workflows/ci-gitops-bump.yml@main  # Call GitOps bump workflow
+    with:
+      gitops_repo: nishanau/NextJSPortfolioSite                # Repo containing K8s manifests
+      gitops_path: manifests/overlays/dev/kustomization.yaml # File to update image tag
+      image_name: nishans0/next-portfolio                   # Image name to bump
+      image_tag: sha-${{ github.sha }}                      # New tag = commit SHA of this build
+    secrets:
+      GITOPS_PAT: ${{ secrets.GITOPS_PAT }}                 # PAT token with push access to GitOps repo
