@@ -603,8 +603,580 @@ syncPolicy:
 Initially combined, later split into:
 - **CI:** Lint, validate, build, and push Docker image.
 - **CD:** Sync updated image tag via ArgoCD.
-- 
-CI/CD (End-to-End Flow ) 
+
+***Thought Process and Evolution:***
+*Initially, during brainstorming and designing the CI-flows, I thought a single flow that would build and push the image would be enough. As I dug deep, I realized, the pre deployment tests for manifests like yamllint, conftest, kube-score, etc need to be tested on every manifest update as well. This meant I would need 2 sets of tests, one for the app code and the other to test the infra code. After this I realized that its better to have separate workflows for app updates and infra code updates. We have a monorepo i.e. the GitOps Repo and the App repo is in a single repo. First, I started creating pre-deploy test flows for infra. The first test flow would install all the test tools in the vm for every flow. This was inefficient so I decided to create and push a container (tools-container) that would install and host all the test tools. Then our infra CI flow will use this container and test the infra code in it. However, if I need to make changes to the container, I would need to manually edit the dockerfile, then build it and push it. So, I thought maybe I should create a flow that will run when the dockerfile is changed. This gave me another insight; this container only has the test tools installed which can be used to test any manifests in any repo and I have many apps that I want to host in the cluster later on. So, if I make this a reusable image then all the repos I want can call it. This prompted me to create a ci-cd-templates repository which would host all reusable workflows for CI, dockerfile and package building. The dockerfile for the tools container is in `ci-images/pre-deploy-test-tools` directory. Any commit that contains change to this dockerfile will call `build-pre-deploy-tools.yml` which will build the latest package and push it to ghcr.io.  With the ci-cd-template repo created, I wanted to standardize my CI for app and infra code as well. Hence, I created  `ci-app.yml`, `ci-manifests.yml` and `ci-gitops-bump.yml` workflows. These are reusable workflows which is used by my **Next Portfolio** app and will be used by apps I deploy in the future. These workflows are the backbone of my scalable CI/CD End-to-End deployment. There is clear separation of concerns between different branches, as the workflows will only work on the files of the specific branch mentioned in the input but the calling workflow.*
+
+###nishanau/ci-cd-templates/.github/workflows/ci-app.yml###
+This workflow will be called when there is change in the app related code, for example, adding new features, resolving code, etc. Any app can call this flow for its CI and when calling, the calling flow must provide the required inputs as mentioned in this flow for it to function properly. This workflow will containerize, test (automated dev related test like unit tests,etc.), lint, build, push and test the build image for vulnerabilities.
+
+````yaml
+# =====================================================================
+#  Reusable Workflow: CI - App (Build, Scan, Push to Docker Hub)
+# =====================================================================
+
+name: CI - App (Build + Scan + Push)
+
+on:
+  workflow_call:
+    inputs:
+      image_name:
+        description: "Full Docker Hub image name (e.g. nishanau/my-app)"
+        required: true
+        type: string
+      context:
+        description: "Docker build context"
+        default: "."
+        type: string
+      dockerfile:
+        description: "Dockerfile path"
+        default: "./Dockerfile"
+        type: string
+      push_image:
+        description: "Whether to push image to Docker Hub"
+        default: true
+        type: boolean
+      run_tests:
+        description: "Whether to run app lint/tests"
+        default: true
+        type: boolean
+
+    secrets:
+      DOCKERHUB_USERNAME:
+        required: true
+      DOCKERHUB_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+  packages: read
+  security-events: write
+
+# =====================================================================
+# 1️⃣ Lint + Unit Tests
+# =====================================================================
+jobs:
+  lint_test:
+    runs-on: ubuntu-latest
+    if: ${{ inputs.run_tests }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          if [ -f package.json ]; then
+            npm ci
+          elif [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          else
+            echo "No recognized dependency manifest found"
+          fi
+
+      - name: Run tests
+        run: |
+          if [ -f package.json ]; then
+            npm test || true
+          elif [ -f pytest.ini ] || [ -d tests ]; then
+            pytest || true
+          else
+            echo "No test suite found; skipping"
+          fi
+
+# =====================================================================
+# 2️⃣ Build, Push, and Scan
+# =====================================================================
+  build_scan:
+    runs-on: ubuntu-latest
+    needs: [lint_test]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ----------------------------------------------------------
+      # Login to Docker Hub using your secrets
+      # ----------------------------------------------------------
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # ----------------------------------------------------------
+      # Build and push Docker image
+      # ----------------------------------------------------------
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.dockerfile }}
+          push: ${{ inputs.push_image }}
+          tags: |
+            ${{ inputs.image_name }}:sha-${{ github.sha }}
+            ${{ inputs.image_name }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true
+          labels: |
+            org.opencontainers.image.source=${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      # ----------------------------------------------------------
+      # Scan built image using Trivy
+      # ----------------------------------------------------------
+      - name: Scan image for vulnerabilities
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: ${{ inputs.image_name }}:sha-${{ github.sha }}
+          vuln-type: 'os,library'
+          severity: 'HIGH,CRITICAL'
+          ignore-unfixed: true
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      # ----------------------------------------------------------
+      # Upload scan results to GitHub Security tab
+      # ----------------------------------------------------------
+      - name: Upload Trivy results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+````
+
+###nishanau/ci-cd-templates/.github/workflows/ci-manifests.yml###
+This reusable workflow will use the tools test container that we created to test the manifests genereated. It will then test the manifests in the container and outputs the results. Calling workflows can use inputs to specify different variants of tests that can be run. It also publishes the results to Code Scanning Alerts which can be viewed from Security/Code Scanner tab for security related issues.
+````yaml
+# Reusable workflow that validates Kubernetes manifests before deploy
+name: ci-manifests
+
+on:
+  workflow_call:
+    inputs:
+      overlay_path:                     # Path to the overlay folder to validate
+        description: "Path to overlay (e.g., manifests/overlays/dev)"
+        required: true
+        type: string
+      tools_ref:                        # Tag or digest for the pre-deploy tools image
+        description: "Tag or digest for tools image"
+        required: false
+        type: string
+        default: "latest"               # Prefer pinning by digest in callers for immutability
+      policies_path:                    # Where your Rego policies live (optional)
+        description: "Path to conftest policies (rego)"
+        required: false
+        type: string
+        default: "policies"
+      kubeconform_flags:                # Extra flags for kubeconform (schema validation)
+        description: "Extra kubeconform flags"
+        required: false
+        type: string
+        default: "--strict --ignore-missing-schemas"
+      fail_on_warn:                     # Make kube-score warnings fail the job
+        description: "Fail on kube-score warnings"
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read            # checkout needs this
+  packages: read            # pull the tools image from GHCR if needed
+  security-events: write    # upload SARIF to Code Scanning
+
+# Prevent duplicate runs on the same ref; cancel older in-flight runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate manifests
+    runs-on: ubuntu-latest
+
+    # Run all steps inside the shared tools container (has kustomize, kubeconform, etc.)
+    container:
+      image: ghcr.io/nishanau/ci-cd-templates/pre-deploy-tools:${{ inputs.tools_ref }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    timeout-minutes: 20
+
+    steps:
+      # 1) Pull the repo contents (manifests and optional policies)
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # 2) Print tool versions into the job summary for auditability
+      - name: Tool versions
+        run: toolbox-versions >> $GITHUB_STEP_SUMMARY || true
+
+      # 3) Lint raw YAML for indentation, formatting, and obvious syntax errors
+      - name: YAML lint
+        run: yamllint -d relaxed "${{ inputs.overlay_path }}"
+
+      # 4) Render the overlay to final deployable YAML and persist as build.yaml for later checks
+      - name: Render manifests (kustomize)
+        shell: bash
+        run: |
+          kustomize build "${{ inputs.overlay_path }}" | tee build.yaml
+
+      # 5) Validate rendered YAML against Kubernetes/OpenAPI schemas
+      #    --strict: fail on unknown/invalid fields
+      #    --ignore-missing-schemas: skip resources without published schemas (tune per repo)
+      - name: Schema validate (kubeconform)
+        run: kubeconform ${{ inputs.kubeconform_flags }} < build.yaml
+
+      # 6) Run org policy tests (Rego). Enforce labels, probes, resources, securityContext, etc.
+      - name: Policy tests (conftest)
+        shell: bash
+        run: |
+          if [ -d "${{ inputs.policies_path }}" ]; then
+            conftest test "${{ inputs.overlay_path }}" --policy "${{ inputs.policies_path }}" --output table
+          else
+            echo "No policies directory '${{ inputs.policies_path }}' found. Skipping."
+          fi
+
+      # 7) Heuristic best-practice checks; optionally fail on warnings for stronger gates
+      - name: kube-score best-practices
+        shell: bash
+        run: |
+          if ${{ inputs.fail_on_warn }}; then
+            kustomize build ${{ inputs.overlay_path }} | kube-score score --exit-one-on-warning -
+          else
+            kustomize build ${{ inputs.overlay_path }} | kube-score score -
+          fi
+
+      # 8) IaC security scan; export SARIF so findings show in GitHub Security tab
+      - name: IaC scan (Checkov → SARIF)
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: ${{ inputs.overlay_path }}
+          output_format: sarif
+          output_file_path: checkov.sarif
+          skip_check: CKV_K8S_43,CKV_K8S_16
+
+      # 9) Publish SARIF results to repository “Code scanning alerts”
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: checkov.sarif
+
+      # 10) Persist key artifacts (rendered YAML + SARIF) for 21 days for audit and debugging
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: manifests-ci-${{ github.run_id }}
+          path: |
+            build.yaml
+            checkov.sarif
+          retention-days: 21
+
+      # 11) Human-readable run summary
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Manifests CI"
+            echo "- Overlay: \`${{ inputs.overlay_path }}\`"
+            echo "- kubeconform flags: \`${{ inputs.kubeconform_flags }}\`"
+            echo "- kube-score fail on warn: \`${{ inputs.fail_on_warn }}\`"
+          } >> $GITHUB_STEP_SUMMARY
+````
+
+###nishanau/ci-cd-templates/.github/workflows/ci-gitops-bump.yml###
+This worflow is called in our next-portfolio app when workflows calling both ci-app and ci-manifests pass or skip(for various scenarios handled by the calling workflow) but not fail. If any of the 2 flows fail then this flow wont be called. The main function of this flow is to change the image tag of the kustomization.yaml in the overlays of branch mentioned in input (dev, stage, prod/main). This is what triggers the ArgoCD to resync and deploy the latest change to the cluster. There are different scenarios that determine if a tag bump is necessary.
+````yaml
+# =====================================================================
+#  Reusable Workflow: CI - GitOps Bump
+#  ---------------------------------------------------------------------
+#  Purpose:
+#    - Updates image tag (newTag) in the GitOps repo's kustomization.yaml
+#    - Commits and pushes the change automatically
+#    - Used after a successful app image build in the main pipeline
+# =====================================================================
+
+name: CI - GitOps Bump
+
+on:
+  workflow_call:
+    inputs:
+      gitops_repo:
+        description: "Target GitOps repository (e.g., nishanau/gitops-infra-k8s)"
+        required: true
+        type: string
+      gitops_path:
+        description: "Path to the overlay kustomization.yaml file"
+        required: true
+        type: string
+      image_name:
+        description: "Full image name (e.g., nishanau/nextjs-portfolio)"
+        required: true
+        type: string
+      image_tag:
+        description: "New image tag (e.g., sha-b29c372...)"
+        required: true
+        type: string
+    secrets:
+      gitops_pat:
+        required: true   # Personal Access Token (PAT) for repo write access
+
+permissions:
+  contents: write       # Needed for committing and pushing changes
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ------------------------------------------------------------
+      # 1. Checkout the GitOps repository where manifests live
+      # ------------------------------------------------------------
+      - name: Checkout GitOps repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.gitops_repo }}     # e.g. nishanau/NextJSPortfolioSite
+          token: ${{ secrets.gitops_pat }}          # PAT forwarded from caller workflow
+          persist-credentials: true                 # keep credentials for git push
+          fetch-depth: 0                            # full history to allow push
+          ref: ${{ github.ref_name }}               # checkout the branch that triggered the workflow
+
+      # ------------------------------------------------------------
+      # 2. Install yq for YAML editing
+      # ------------------------------------------------------------
+      - name: Install yq
+        run: |
+          sudo wget -q https://github.com/mikefarah/yq/releases/download/v4.44.2/yq_linux_amd64 -O /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+          echo "yq version:"
+          yq --version
+
+      # ------------------------------------------------------------
+      # 3. Update the image tag in kustomization.yaml
+      # ------------------------------------------------------------
+      - name: Update Image Tag in kustomization.yaml
+        run: |
+          echo "Updating image '${{ inputs.image_name }}' to tag '${{ inputs.image_tag }}'"
+          # Replace .newTag value of matching image
+          yq -i '
+            (.images[] | select(.name == "'"${{ inputs.image_name }}"'") | .newTag)
+              = "'"${{ inputs.image_tag }}"'"
+          ' "${{ inputs.gitops_path }}"
+          echo "Updated file contents:"
+          cat "${{ inputs.gitops_path }}"
+
+      # ------------------------------------------------------------
+      # 4. Commit and push the change
+      # ------------------------------------------------------------
+      - name: Commit and push changes
+        run: |
+          # Configure bot identity for commit
+          git config user.name "ci-bot"
+          git config user.email "ci-bot@users.noreply.github.com"
+
+          # Stage modified file
+          git add "${{ inputs.gitops_path }}"
+
+          # Commit only if there are changes; otherwise skip
+          git commit -m "bump image ${{ inputs.image_name }} to ${{ inputs.image_tag }} [skip ci]" || echo "No changes to commit"
+
+          # Push back to the same repo branch that triggered the flow
+          git push origin HEAD:${{ github.ref_name }}
+````
+
+###nishanau/NextJSPortfolioSite/.github/workflows/dev-ci.yml###
+This is the app specific CI workflow for our next-portfolio app. This is where our reusable workflows will be called. Firstly, it detects the files that have changed and based on the output of this detection it will decide to run Job2 (ci-app) and/or Job3 (ci-manifests) or not. If any app related files changed, it will run Job2, which will use ci-app.yml and builds, tests, and publishes the latest image with the commit sha as the tag. If any files related to manifests or policies change then Job 2 (ci-manifests) will cann ci-manifests.yml which will test the manifests and gives the output. If both of these tests pass then it will proceed with gitops version bump. There are some scenarios that decide whether this version bump gets triggered or not given in the table below.
+
+## 🧩 Unified Tag Bump Scenario Table
+
+| Branch | Changed Files | App CI Result | Manifests CI Result | Tag Source Used | Tag Bump Happens? | Outcome / Behavior |
+|:-------|:---------------|:---------------|:--------------------|:----------------|:------------------|:--------------------|
+| **dev** | App code only (`src/**`, `Dockerfile`, etc.) | ✅ success | ⚠️ skipped | Current commit SHA | ✅ Yes | New image built and pushed. `manifests/overlays/dev/kustomization.yaml` updated with new SHA tag. |
+| **dev** | App + manifests | ✅ success | ✅ success | Current commit SHA | ✅ Yes | Both app and infra validated; tag updated to new image version. |
+| **dev** | Only manifests | ⚠️ skipped | ✅ success | — | ❌ No | No rebuild; manifests validated but tag unchanged. |
+| **dev** | App build failed | ❌ failed | — | — | ❌ No | Protects environment from broken builds. |
+| **dev** | No changes (manual run or re-run) | ⚠️ skipped | ⚠️ skipped | — | ❌ No | Nothing to commit or push. |
+| **dev** | Manual rollback (tag edited manually) | ⚠️ skipped | ✅ success | Older SHA | ⚠️ Yes (manual) | Argo CD automatically rolls back to previous image version. |
+| **stage** | Manifest overlay updated | ⚠️ skipped | ✅ success | Tag from **dev** overlay | ✅ Yes | Copies latest verified tag from dev → updates `stage` overlay. |
+| **stage** | No manifest changes (promotion commit only) | ⚠️ skipped | ⚠️ skipped | Tag from **dev** overlay | ✅ Yes | Uses last known good image from dev to redeploy. |
+| **stage** | Invalid manifests/policy errors | ⚠️ skipped | ❌ failed | — | ❌ No | Tag bump blocked due to failed validation. |
+| **stage** | App code changed (rare) | ✅ success | ✅ success | Current commit SHA | ✅ Yes | Both succeed → tag updated, though unusual for stage. |
+| **stage** | App CI failed | ❌ failed | — | — | ❌ No | Prevents failed app builds from promoting. |
+| **stage** | Manual rollback (tag edited manually) | ⚠️ skipped | ⚠️ skipped | Older SHA | ⚠️ Yes (manual) | Argo CD redeploys previous version automatically. |
+| **prod** | Promotion from stage (manifest change) | ⚠️ skipped | ✅ success | Tag from **stage** overlay | ✅ Yes | Bumps `prod` overlay with last validated stage tag. |
+| **prod** | No manifest change (manual redeploy) | ⚠️ skipped | ⚠️ skipped | Tag from **stage** overlay | ✅ Yes | Redeploys existing prod image. |
+| **prod** | Invalid manifests/policy errors | ⚠️ skipped | ❌ failed | — | ❌ No | Fails validation, tag unchanged. |
+| **prod** | App rebuilt on prod (not recommended) | ✅ success | ✅ success | Current commit SHA | ✅ Yes | Works but violates GitOps best practice. |
+| **prod** | App CI failed | ❌ failed | — | — | ❌ No | No bump; deployment halted. |
+| **prod** | Manual rollback (tag edited manually) | ⚠️ skipped | ⚠️ skipped | Older SHA | ⚠️ Yes (manual) | Argo CD rolls back to known good version. |
+
+---
+
+### 🧠 Summary
+
+| Environment | Tag Source | Automatic Build? | Typical Trigger | Behavior |
+|:-------------|:-----------|:-----------------|:----------------|:----------|
+| **dev** | `sha-${{ github.sha }}` | ✅ Yes | Code push | Builds, pushes, updates `dev` overlay |
+| **stage** | From `dev` overlay | ❌ No | Merge/promotion | Copies last known good tag |
+| **prod** | From `stage` overlay | ❌ No | Merge/promotion | Copies last verified tag |
+| **any** | Manual edit | ❌ No | Tag revert | Argo CD auto-syncs rollback |
+
+
+````yaml
+# =====================================================================
+#  Workflow: Dev CI (App + Manifests + GitOps Bump)
+#  ---------------------------------------------------------------------
+#  Purpose:
+#    - Run App CI when app code/config changes
+#    - Run Manifests CI when infra YAML/policy changes
+#    - Bump image tag in manifests when both succeed
+# =====================================================================
+
+name: Dev CI (App + Manifests + GitOps Bump)
+
+on:
+  push:
+    branches: [dev, stage, master]
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'next.config.mjs'
+      - 'eslint.config.mjs'
+      - 'jsconfig.json'
+      - 'tsconfig.json'
+      - 'manifests/**'
+      - 'policy/**'
+      - '.github/workflows/dev-ci.yml'
+
+permissions:
+  contents: write
+  packages: write
+  security-events: write
+
+jobs:
+  # =====================================================================
+  #  JOB 0: DETECT CHANGED FILES
+  # =====================================================================
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+      manifests: ${{ steps.filter.outputs.manifests }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          base: ${{ github.event.before }}
+          ref: ${{ github.sha }}
+          filters: |
+            app:
+              - 'src/**'
+              - 'public/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'Dockerfile'
+              - '.dockerignore'
+              - 'next.config.mjs'
+              - 'eslint.config.mjs'
+              - 'jsconfig.json'
+              - 'tsconfig.json'
+            manifests:
+              - 'manifests/**'
+              - 'policy/**'
+
+  # =====================================================================
+  #  JOB 1: APP CI - Build, Test, Scan, Push Image
+  # =====================================================================
+  app-ci:
+    needs: [changes]
+    if: ${{ needs.changes.outputs.app == 'true' && github.ref_name == 'dev' }}
+    uses: nishanau/ci-cd-templates/.github/workflows/ci-app.yml@main
+    with:
+      image_name: nishans0/next-portfolio
+      context: .
+      dockerfile: ./Dockerfile
+      push_image: true
+      run_tests: true
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
+  # =====================================================================
+  #  JOB 2: MANIFESTS CI - Validate YAML & Policies
+  # =====================================================================
+  manifests-ci:
+    needs: [changes]
+    if: ${{ needs.changes.outputs.manifests == 'true' }}
+    uses: nishanau/ci-cd-templates/.github/workflows/ci-manifests.yml@main
+    with:
+      overlay_path: manifests/overlays/${{ github.ref_name }}
+      tools_ref: "latest"
+      policies_path: policy
+      kubeconform_flags: "--strict --ignore-missing-schemas"
+      fail_on_warn: false
+    secrets: inherit
+
+  # =====================================================================
+  #  JOB 3A: RESOLVE IMAGE TAG
+  # =====================================================================
+  resolve-tag:
+    runs-on: ubuntu-latest
+    needs: [app-ci, manifests-ci]
+    if: ${{ always() && (
+      (github.ref_name == 'dev' && needs.app-ci.result == 'success') ||
+      (
+        github.ref_name != 'dev' &&
+        ( !contains(needs.*, 'app-ci') || needs.app-ci.result == 'success' || needs.app-ci.result == 'skipped' ) &&
+        (needs.manifests-ci.result == 'success' || needs.manifests-ci.result == 'skipped')
+      )) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: resolve_tag
+        run: |
+          if [[ "${{ github.ref_name }}" == "dev" ]]; then
+            TAG="sha-${{ github.sha }}"
+          elif [[ "${{ github.ref_name }}" == "stage" ]]; then
+            TAG=$(yq e '.images[] | select(.name=="docker.io/nishans0/next-portfolio") | .newTag' manifests/overlays/dev/kustomization.yaml)
+          elif [[ "${{ github.ref_name }}" == "master" || "${{ github.ref_name }}" == "prod" ]]; then
+            TAG=$(yq e '.images[] | select(.name=="docker.io/nishans0/next-portfolio") | .newTag' manifests/overlays/stage/kustomization.yaml)
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+    outputs:
+      tag: ${{ steps.resolve_tag.outputs.tag }}
+
+  # =====================================================================
+  #  JOB 3B: GITOPS BUMP - Update Image Tag in Manifest
+  # =====================================================================
+  bump-gitops:
+    needs: [app-ci, manifests-ci, resolve-tag]
+    if: ${{ always() && (
+      (github.ref_name == 'dev' && needs.app-ci.result == 'success') ||
+      (
+        github.ref_name != 'dev' &&
+        ( !contains(needs.*, 'app-ci') || needs.app-ci.result == 'success' || needs.app-ci.result == 'skipped' ) &&
+        (needs.manifests-ci.result == 'success' || needs.manifests-ci.result == 'skipped')
+      )) }}
+    uses: nishanau/ci-cd-templates/.github/workflows/ci-gitops-bump.yml@main
+    with:
+      gitops_repo: nishanau/NextJSPortfolioSite
+      gitops_path: manifests/overlays/${{ github.ref_name }}/kustomization.yaml
+      image_name: docker.io/nishans0/next-portfolio
+      image_tag: ${{ needs.resolve-tag.outputs.tag }}
+    secrets:
+      gitops_pat: ${{ secrets.GITOPS_PAT }}
+````
+
+##Final CI/CD (End-to-End Flow)## 
 ![CI/CD + GitOps Architecture](./flow-1.svg)
 
 
