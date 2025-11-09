@@ -5,4 +5,4 @@ resources:
   - ingress.yaml
 images:
   - name: docker.io/nishans0/next-portfolio
-    newTag: sha-217a0d4c34a03141d09c2d981b0c03e16912b0e6
+    newTag: sha-4978f268ada590586aa09fb7432d9dbbe1aeebda
