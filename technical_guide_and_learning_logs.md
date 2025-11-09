@@ -604,7 +604,88 @@ Initially combined, later split into:
 - **CI:** Lint, validate, build, and push Docker image.
 - **CD:** Sync updated image tag via ArgoCD.
 
-Each flow runs pre-deploy tests (yamllint, kubeconform, conftest) before deployment.
+flowchart TD
+
+%% ================================
+%% App Repository (Next.js)
+%% ================================
+A1([Developer Commit to dev Branch])
+A2[CI - Dev Workflow\n(Build + Scan + Push Image)]
+A3[Reusable Workflow: bump-image.yml\n(Update newTag in GitOps repo)]
+A4{{GitOps Repo\n(manifests/overlays/dev)}}
+
+%% ================================
+%% Stage + Prod Promotion
+%% ================================
+B1([Merge dev → stage])
+B2[Promote-Stage Workflow\n(Read tag from dev → bump stage)]
+B3{{GitOps Repo\n(manifests/overlays/stage)}}
+
+C1([Merge stage → prod])
+C2[Promote-Prod Workflow\n(Read tag from stage → bump prod)]
+C3{{GitOps Repo\n(manifests/overlays/prod)}}
+
+%% ================================
+%% Argo CD Sync Targets
+%% ================================
+D1[(ArgoCD App: react-portfolio-dev\nSyncs dev overlay)]
+D2[(ArgoCD App: react-portfolio-stage\nSyncs stage overlay)]
+D3[(ArgoCD App: react-portfolio-prod\nSyncs prod overlay)]
+
+%% ================================
+%% Cluster
+%% ================================
+E1[(Kubernetes Cluster\n(Minikube / MetalLB / Ingress / Cloudflare Tunnel))]
+
+%% ================================
+%% Links: Dev Flow
+%% ================================
+A1 --> A2 --> A3 --> A4 --> D1 --> E1
+
+%% ================================
+%% Links: Stage Flow
+%% ================================
+B1 --> B2 --> B3 --> D2 --> E1
+
+%% ================================
+%% Links: Prod Flow
+%% ================================
+C1 --> C2 --> C3 --> D3 --> E1
+
+%% ================================
+%% Rollback Flow
+%% ================================
+R1[[Rollback: revert tag in overlay]]
+R1 -.-> A4
+R1 -.-> B3
+R1 -.-> C3
+
+%% ================================
+%% Decorations
+%% ================================
+subgraph AppRepo["App Repository (next-portfolio)"]
+A1
+A2
+A3
+end
+
+subgraph GitOps["GitOps Repository (manifests)"]
+A4
+B3
+C3
+end
+
+subgraph CD["Argo CD (Continuous Delivery)"]
+D1
+D2
+D3
+end
+
+subgraph Cluster["Kubernetes Cluster"]
+E1
+end
+
+
 
 ---
 
