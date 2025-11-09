@@ -607,7 +607,7 @@ Initially combined, later split into:
 ***Thought Process and Evolution:***
 *Initially, during brainstorming and designing the CI-flows, I thought a single flow that would build and push the image would be enough. As I dug deep, I realized, the pre deployment tests for manifests like yamllint, conftest, kube-score, etc need to be tested on every manifest update as well. This meant I would need 2 sets of tests, one for the app code and the other to test the infra code. After this I realized that its better to have separate workflows for app updates and infra code updates. We have a monorepo i.e. the GitOps Repo and the App repo is in a single repo. First, I started creating pre-deploy test flows for infra. The first test flow would install all the test tools in the vm for every flow. This was inefficient so I decided to create and push a container (tools-container) that would install and host all the test tools. Then our infra CI flow will use this container and test the infra code in it. However, if I need to make changes to the container, I would need to manually edit the dockerfile, then build it and push it. So, I thought maybe I should create a flow that will run when the dockerfile is changed. This gave me another insight; this container only has the test tools installed which can be used to test any manifests in any repo and I have many apps that I want to host in the cluster later on. So, if I make this a reusable image then all the repos I want can call it. This prompted me to create a ci-cd-templates repository which would host all reusable workflows for CI, dockerfile and package building. The dockerfile for the tools container is in `ci-images/pre-deploy-test-tools` directory. Any commit that contains change to this dockerfile will call `build-pre-deploy-tools.yml` which will build the latest package and push it to ghcr.io.  With the ci-cd-template repo created, I wanted to standardize my CI for app and infra code as well. Hence, I created  `ci-app.yml`, `ci-manifests.yml` and `ci-gitops-bump.yml` workflows. These are reusable workflows which is used by my **Next Portfolio** app and will be used by apps I deploy in the future. These workflows are the backbone of my scalable CI/CD End-to-End deployment. There is clear separation of concerns between different branches, as the workflows will only work on the files of the specific branch mentioned in the input but the calling workflow.*
 
-###nishanau/ci-cd-templates/.github/workflows/ci-app.yml###
+### nishanau/ci-cd-templates/.github/workflows/ci-app.yml
 This workflow will be called when there is change in the app related code, for example, adding new features, resolving code, etc. Any app can call this flow for its CI and when calling, the calling flow must provide the required inputs as mentioned in this flow for it to function properly. This workflow will containerize, test (automated dev related test like unit tests,etc.), lint, build, push and test the build image for vulnerabilities.
 
 ````yaml
@@ -746,7 +746,7 @@ jobs:
           sarif_file: trivy-results.sarif
 ````
 
-###nishanau/ci-cd-templates/.github/workflows/ci-manifests.yml###
+### nishanau/ci-cd-templates/.github/workflows/ci-manifests.yml
 This reusable workflow will use the tools test container that we created to test the manifests genereated. It will then test the manifests in the container and outputs the results. Calling workflows can use inputs to specify different variants of tests that can be run. It also publishes the results to Code Scanning Alerts which can be viewed from Security/Code Scanner tab for security related issues.
 ````yaml
 # Reusable workflow that validates Kubernetes manifests before deploy
@@ -886,7 +886,7 @@ jobs:
           } >> $GITHUB_STEP_SUMMARY
 ````
 
-###nishanau/ci-cd-templates/.github/workflows/ci-gitops-bump.yml###
+### nishanau/ci-cd-templates/.github/workflows/ci-gitops-bump.yml
 This worflow is called in our next-portfolio app when workflows calling both ci-app and ci-manifests pass or skip(for various scenarios handled by the calling workflow) but not fail. If any of the 2 flows fail then this flow wont be called. The main function of this flow is to change the image tag of the kustomization.yaml in the overlays of branch mentioned in input (dev, stage, prod/main). This is what triggers the ArgoCD to resync and deploy the latest change to the cluster. There are different scenarios that determine if a tag bump is necessary.
 ````yaml
 # =====================================================================
@@ -986,10 +986,10 @@ jobs:
           git push origin HEAD:${{ github.ref_name }}
 ````
 
-###nishanau/NextJSPortfolioSite/.github/workflows/dev-ci.yml###
+### nishanau/NextJSPortfolioSite/.github/workflows/dev-ci.yml
 This is the app specific CI workflow for our next-portfolio app. This is where our reusable workflows will be called. Firstly, it detects the files that have changed and based on the output of this detection it will decide to run Job2 (ci-app) and/or Job3 (ci-manifests) or not. If any app related files changed, it will run Job2, which will use ci-app.yml and builds, tests, and publishes the latest image with the commit sha as the tag. If any files related to manifests or policies change then Job 2 (ci-manifests) will cann ci-manifests.yml which will test the manifests and gives the output. If both of these tests pass then it will proceed with gitops version bump. There are some scenarios that decide whether this version bump gets triggered or not given in the table below.
 
-## 🧩 Unified Tag Bump Scenario Table
+### 🧩 Unified Tag Bump Scenario Table
 
 | Branch | Changed Files | App CI Result | Manifests CI Result | Tag Source Used | Tag Bump Happens? | Outcome / Behavior |
 |:-------|:---------------|:---------------|:--------------------|:----------------|:------------------|:--------------------|
@@ -1176,7 +1176,7 @@ jobs:
       gitops_pat: ${{ secrets.GITOPS_PAT }}
 ````
 
-##Final CI/CD (End-to-End Flow)## 
+## Final CI/CD (End-to-End Flow)
 ![CI/CD + GitOps Architecture](./flow-1.svg)
 
 
