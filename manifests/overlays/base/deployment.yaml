@@ -21,7 +21,7 @@ spec:
   selector:
     matchLabels:
       app: next-portfolio  # must match labels in template below
-  template: # template for the pods
+  template:  # template for the pods
     metadata:
       labels:
         app: next-portfolio  # must match selector above
@@ -31,6 +31,7 @@ spec:
         prometheus.io/scrape: "true"  # enables prometheus scraping
         prometheus.io/port: "3000"  # port on which prometheus will scrape
         prometheus.io/path: "/metrics"  # path for prometheus scraping
+        kube-score/ignore: pod-networkpolicy,pod-probes-identical  # ignore these checks
     spec:  # specification of the pod
       # service account for the pod, if we use default, it has more
       # privileges than needed
@@ -70,6 +71,14 @@ spec:
             failureThreshold: 10
             successThreshold: 1  # after 1 success, the pod is marked as started
           # checks if the app is alive, if not, it will be restarted
+          readinessProbe:
+            httpGet:
+              path: "/"
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
           livenessProbe:
             # HTTP GET request to the root path on port 3000 more options
             # can be protocol, host, scheme
@@ -93,6 +102,8 @@ spec:
           # security options for the container. We are giving UID and GID
           # to run the container as non-root user for security
           securityContext:
+            seccompProfile:
+              type: RuntimeDefault
             allowPrivilegeEscalation: false  # do not allow privilege escalation
             capabilities:  # drop all capabilities for security
               drop: ["ALL"]

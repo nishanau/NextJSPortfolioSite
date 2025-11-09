@@ -28,7 +28,8 @@ export default function Home() {
           <span className={styles.skill}>Kubernetes</span>
           <span className={styles.skill}>Docker</span>
           <span className={styles.skill}>Terraform</span>
-          <span className={styles.skill}>Jenkins/GitLab CI</span>
+          <span className={styles.skill}>GitHub Actions CI</span>
+          <span className={styles.skill}>ArgoCD</span>
           <span className={styles.skill}>Monitoring</span>
         </div>
         
