@@ -605,7 +605,7 @@ Initially combined, later split into:
 - **CD:** Sync updated image tag via ArgoCD.
 - 
 CI/CD (End-to-End Flow ) 
-![CI/CD + GitOps Architecture](./CICD_Flow.svg)
+![CI/CD + GitOps Architecture](./flow-1.svg)
 
 
 ---
