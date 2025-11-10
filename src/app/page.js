@@ -18,7 +18,7 @@ export default function Home() {
         </div>
         
         <p className={styles.description}>
-          Passionate IT guy aspiring to become a DevOps Engineer with love for <span className={styles.highlight}>automation</span>, 
+          I design and build scalable cloud infrastructure with expertise in <span className={styles.highlight}>automation</span>, 
           <span className={styles.highlight}> containerization</span>, and 
           <span className={styles.highlight}> CI/CD pipelines</span>. Passionate about creating reliable, secure, and efficient systems.
         </p>
