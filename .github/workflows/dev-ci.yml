@@ -11,7 +11,7 @@ name: Dev CI (App + Manifests + GitOps Bump)
 
 on:
   push:
-    branches: [ "dev" ]
+    branches: [ "dev", "stage", "prod" ]
     paths:
       - "src/**"
       - "public/**"
@@ -156,7 +156,7 @@ jobs:
   # =====================================================================
   bump-gitops:
     needs: [app-ci, manifests-ci, resolve-tag, resolve-branch]
-    if: ${{ always() && (
+    if: ${{ github.event_name == 'push' && (
       (needs.resolve-branch.outputs.target_branch == 'dev' && needs.app-ci.result == 'success') ||
       (
         needs.resolve-branch.outputs.target_branch != 'dev' &&
