@@ -1,205 +1,149 @@
-# ==========================================================
-#  Workflow: CI - Dev (SHA tag + GitOps auto-update)
+# =====================================================================
+#  Workflow: Dev CI (App + Manifests + GitOps Bump)
+#  ---------------------------------------------------------------------
 #  Purpose:
-#    - Validate Kubernetes manifests and policies
-#    - Build and scan Docker image
-#    - Push image with immutable SHA tag
-#    - Auto-update dev overlay newTag → Argo CD syncs automatically
-# ==========================================================
+#    - Run App CI when app code/config changes
+#    - Run Manifests CI when infra YAML/policy changes
+#    - Bump image tag in manifests when both succeed
+# =====================================================================
 
-name: CI - Dev (SHA tag + GitOps update)
+name: Dev CI (App + Manifests + GitOps Bump)
 
-# ----------------------------------------------------------
-# Triggers:
-#   - On any commit pushed to "dev" branch
-#   - On any pull request targeting "dev"
-# ----------------------------------------------------------
 on:
   push:
-    branches: [ "dev" ]
-  pull_request:
-    branches: [ "dev" ]
+    branches: [dev, stage, master]
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'next.config.mjs'
+      - 'eslint.config.mjs'
+      - 'jsconfig.json'
+      - 'tsconfig.json'
+      - 'manifests/**'
+      - 'policy/**'
+      - '.github/workflows/dev-ci.yml'
 
-# ----------------------------------------------------------
-# Shared environment variables for reuse in steps
-# ----------------------------------------------------------
-env:
-  KUSTOMIZE_DIR: manifests/overlays/dev            # Path to dev overlay folder
-  IMAGE_TAG: sha-${{ github.sha }}                 # Immutable tag = current commit SHA
-  DEV_NS: dev                                      # Dev namespace name (used for validation)
-
-# ----------------------------------------------------------
-# Prevent multiple runs from overlapping
-# ----------------------------------------------------------
-concurrency:
-  group: dev-ci-${{ github.ref }}
-  cancel-in-progress: true
+permissions:
+  contents: write
+  packages: write
+  security-events: write
 
 jobs:
-  validate_and_update:
-    name: Build, Validate, Push, and GitOps Bump
+  # =====================================================================
+  #  JOB 0: DETECT CHANGED FILES
+  # =====================================================================
+  changes:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write     # allows committing back to repo
-      packages: write
-      id-token: write
-
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+      manifests: ${{ steps.filter.outputs.manifests }}
     steps:
-    # ======================================================
-    # Step 1: Checkout repository
-    # ======================================================
-    - name: Checkout source code
-      uses: actions/checkout@v4
-      with:
-        persist-credentials: false  # we’ll manually use token for push later
+      - uses: actions/checkout@v4
 
-    # ======================================================
-    # Step 2: Configure kubeconfig (optional but recommended)
-    # ------------------------------------------------------
-    # Needed for kubectl --dry-run validation against dev cluster.
-    # Create the KUBECONFIG_DEV secret by base64-encoding ~/.kube/config.
-    # ======================================================
-    - name: Configure kubeconfig
-      run: |
-        mkdir -p ~/.kube
-        echo "${{ secrets.KUBECONFIG_DEV }}" | base64 -d > ~/.kube/config
-        chmod 600 ~/.kube/config
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          base: ${{ github.event.before }}
+          ref: ${{ github.sha }}
+          filters: |
+            app:
+              - 'src/**'
+              - 'public/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'Dockerfile'
+              - '.dockerignore'
+              - 'next.config.mjs'
+              - 'eslint.config.mjs'
+              - 'jsconfig.json'
+              - 'tsconfig.json'
+            manifests:
+              - 'manifests/**'
+              - 'policy/**'
 
-    # ======================================================
-    # Step 3: Install CLI tools
-    # ------------------------------------------------------
-    # Installs all validators and scanners used in DevOps checks.
-    # ======================================================
-    - name: Install validation tools
-      run: |
-        sudo apt-get update -y
-        sudo apt-get install -y curl jq yamllint trivy
+  # =====================================================================
+  #  JOB 1: APP CI - Build, Test, Scan, Push Image
+  # =====================================================================
+  app-ci:
+    needs: [changes]
+    if: ${{ needs.changes.outputs.app == 'true' && github.ref_name == 'dev' }}
+    uses: nishanau/ci-cd-templates/.github/workflows/ci-app.yml@main
+    with:
+      image_name: nishans0/next-portfolio
+      context: .
+      dockerfile: ./Dockerfile
+      push_image: true
+      run_tests: true
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
-        # Install kubectl (Kubernetes CLI)
-        curl -sL https://dl.k8s.io/release/$(curl -sL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl -o kubectl
-        sudo install -m 0755 kubectl /usr/local/bin/kubectl
+  # =====================================================================
+  #  JOB 2: MANIFESTS CI - Validate YAML & Policies
+  # =====================================================================
+  manifests-ci:
+    needs: [changes]
+    if: ${{ needs.changes.outputs.manifests == 'true' }}
+    uses: nishanau/ci-cd-templates/.github/workflows/ci-manifests.yml@main
+    with:
+      overlay_path: manifests/overlays/${{ github.ref_name }}
+      tools_ref: "latest"
+      policies_path: policy
+      kubeconform_flags: "--strict --ignore-missing-schemas"
+      fail_on_warn: false
+    secrets: inherit
 
-        # Install kustomize (manifest rendering)
-        curl -s https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh | bash
-        sudo mv kustomize /usr/local/bin/
+  # =====================================================================
+  #  JOB 3A: RESOLVE IMAGE TAG
+  # =====================================================================
+  resolve-tag:
+    runs-on: ubuntu-latest
+    needs: [app-ci, manifests-ci]
+    if: ${{ always() && (
+      (github.ref_name == 'dev' && needs.app-ci.result == 'success') ||
+      (
+        github.ref_name != 'dev' &&
+        ( !contains(needs.*, 'app-ci') || needs.app-ci.result == 'success' || needs.app-ci.result == 'skipped' ) &&
+        (needs.manifests-ci.result == 'success' || needs.manifests-ci.result == 'skipped')
+      )) }}
+    steps:
+      - uses: actions/checkout@v4
 
-        # Install kubeconform (schema validation)
-        curl -sL -o kubeconform.tar.gz https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz
-        tar -xzf kubeconform.tar.gz && sudo mv kubeconform /usr/local/bin/
+      - id: resolve_tag
+        run: |
+          if [[ "${{ github.ref_name }}" == "dev" ]]; then
+            TAG="sha-${{ github.sha }}"
+          elif [[ "${{ github.ref_name }}" == "stage" ]]; then
+            TAG=$(yq e '.images[] | select(.name=="docker.io/nishans0/next-portfolio") | .newTag' manifests/overlays/dev/kustomization.yaml)
+          elif [[ "${{ github.ref_name }}" == "master" || "${{ github.ref_name }}" == "prod" ]]; then
+            TAG=$(yq e '.images[] | select(.name=="docker.io/nishans0/next-portfolio") | .newTag' manifests/overlays/stage/kustomization.yaml)
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
 
-        # Install conftest (OPA policy engine)
-        curl -sL https://github.com/open-policy-agent/conftest/releases/latest/download/conftest_Linux_x86_64.tar.gz -o conftest.tgz
-        tar -xzf conftest.tgz && sudo mv conftest /usr/local/bin/
+    outputs:
+      tag: ${{ steps.resolve_tag.outputs.tag }}
 
-        # Install kube-score (best practice scanner)
-        curl -sL https://github.com/zegl/kube-score/releases/latest/download/kube-score_ubuntu_amd64 -o kube-score
-        chmod +x kube-score && sudo mv kube-score /usr/local/bin/
-
-        # Install yq (YAML processor, used to update tags)
-        curl -sL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o yq
-        chmod +x yq && sudo mv yq /usr/local/bin/yq
-
-    # ======================================================
-    # Step 4: Lint YAML files (basic syntax check)
-    # ======================================================
-    - name: Lint YAML
-      run: yamllint -d relaxed .
-
-    # ======================================================
-    # Step 5: Validate manifests against Kubernetes API schemas
-    # ======================================================
-    - name: Schema validation (kubeconform)
-      run: |
-        kustomize build $KUSTOMIZE_DIR | kubeconform --strict --ignore-missing-schemas
-
-    # ======================================================
-    # Step 6: Policy compliance check using OPA / Conftest
-    # ======================================================
-    - name: Policy checks (conftest)
-      run: conftest test $KUSTOMIZE_DIR
-
-    # ======================================================
-    # Step 7: Best-practice review (kube-score)
-    # ------------------------------------------------------
-    # Reports missing probes, resources, replicas, etc.
-    # '|| true' lets warnings pass without failing build.
-    # ======================================================
-    - name: Best-practice analysis (kube-score)
-      run: kube-score score --ignore-test pod-networkpolicy --output-format ci $KUSTOMIZE_DIR || true
-
-    # ======================================================
-    # Step 8: Build Docker image with immutable SHA tag
-    # ======================================================
-    - name: Build Docker image
-      run: docker build -t $IMAGE_NAME:$IMAGE_TAG .
-
-    # ======================================================
-    # Step 9: Scan built image for vulnerabilities
-    # ======================================================
-    - name: Security scan (Trivy)
-      run: trivy image --exit-code 1 --severity HIGH,CRITICAL $IMAGE_NAME:$IMAGE_TAG
-
-    # ======================================================
-    # Step 10: Authenticate to Docker Hub
-    # ------------------------------------------------------
-    # Uses GitHub Secrets: DOCKERHUB_USERNAME / DOCKERHUB_TOKEN
-    # ======================================================
-    - name: Login to Docker Hub
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-    # ======================================================
-    # Step 11: Push both immutable (SHA) and mutable (edge) tags
-    # ------------------------------------------------------
-    # SHA tag = permanent, used for staging/promotion
-    # Edge tag = always latest dev build
-    # ======================================================
-    - name: Push Docker images
-      run: |
-        docker push $IMAGE_NAME:$IMAGE_TAG
-        docker tag $IMAGE_NAME:$IMAGE_TAG $IMAGE_NAME:edge
-        docker push $IMAGE_NAME:edge
-
-    # ======================================================
-    # Step 12: Validate manifests with cluster API (no apply)
-    # ------------------------------------------------------
-    # Ensures YAMLs are accepted by Kubernetes API server.
-    # ======================================================
-    - name: Server-side dry-run validation
-      run: kustomize build $KUSTOMIZE_DIR | kubectl apply --dry-run=server -f -
-
-    # ======================================================
-    # Step 13: GitOps bump - update dev overlay newTag and commit back
-    # ------------------------------------------------------
-    # Instead of force-syncing Argo CD, we update Git itself.
-    # Argo CD auto-sync detects the change and redeploys.
-    # ======================================================
-    - name: Update dev overlay image tag
-      if: ${{ github.event_name == 'push' }}  # skip on PR runs
-      run: |
-        # Replace newTag value with current SHA tag in kustomization.yaml
-        yq -i '
-          (.images[] | select(.name == "'"$IMAGE_NAME"'") | .newTag) = "'"$IMAGE_TAG"'"
-        ' $KUSTOMIZE_DIR/kustomization.yaml
-
-        echo "----- Updated Kustomization -----"
-        grep -A2 "images:" $KUSTOMIZE_DIR/kustomization.yaml || true
-
-    # ======================================================
-    # Step 14: Commit and push the tag bump back to dev branch
-    # ------------------------------------------------------
-    # The [skip ci] flag avoids infinite workflow loops.
-    # ======================================================
-    - name: Commit and push tag update
-      if: ${{ github.event_name == 'push' }}
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # automatically provided by GitHub
-      run: |
-        git config user.name "github-actions"
-        git config user.email "github-actions@github.com"
-        git add $KUSTOMIZE_DIR/kustomization.yaml
-        git commit -m "ci: bump dev image to $IMAGE_TAG [skip ci]" || echo "No changes to commit"
-        git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git
-        git push origin HEAD:dev
+  # =====================================================================
+  #  JOB 3B: GITOPS BUMP - Update Image Tag in Manifest
+  # =====================================================================
+  bump-gitops:
+    needs: [app-ci, manifests-ci, resolve-tag]
+    if: ${{ always() && (
+      (github.ref_name == 'dev' && needs.app-ci.result == 'success') ||
+      (
+        github.ref_name != 'dev' &&
+        ( !contains(needs.*, 'app-ci') || needs.app-ci.result == 'success' || needs.app-ci.result == 'skipped' ) &&
+        (needs.manifests-ci.result == 'success' || needs.manifests-ci.result == 'skipped')
+      )) }}
+    uses: nishanau/ci-cd-templates/.github/workflows/ci-gitops-bump.yml@main
+    with:
+      gitops_repo: nishanau/NextJSPortfolioSite
+      gitops_path: manifests/overlays/${{ github.ref_name }}/kustomization.yaml
+      image_name: docker.io/nishans0/next-portfolio
+      image_tag: ${{ needs.resolve-tag.outputs.tag }}
+    secrets:
+      gitops_pat: ${{ secrets.GITOPS_PAT }}
