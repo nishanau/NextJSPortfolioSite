@@ -156,12 +156,14 @@ jobs:
   # =====================================================================
   bump-gitops:
     needs: [app-ci, manifests-ci, resolve-tag, resolve-branch]
-    if: ${{ github.event_name == 'push' && (
-      (needs.resolve-branch.outputs.target_branch == 'dev' && needs.app-ci.result == 'success') ||
-      (
-        needs.resolve-branch.outputs.target_branch != 'dev' &&
-        (needs.app-ci.result == 'success' || needs.app-ci.result == 'skipped' || needs.app-ci.result == '') &&
-        (needs.manifests-ci.result == 'success' || needs.manifests-ci.result == 'skipped')
+    if: ${{ always() && (
+      github.event_name == 'push' && (
+        (needs.resolve-branch.outputs.target_branch == 'dev' && needs.app-ci.result == 'success') ||
+        (
+          needs.resolve-branch.outputs.target_branch != 'dev' &&
+          (needs.app-ci.result == 'success' || needs.app-ci.result == 'skipped' || needs.app-ci.result == '') &&
+          (needs.manifests-ci.result == 'success' || needs.manifests-ci.result == 'skipped')
+        )
       )) }}
     uses: nishanau/ci-cd-templates/.github/workflows/ci-gitops-bump.yml@main
     with:
@@ -171,3 +173,35 @@ jobs:
       image_tag: ${{ needs.resolve-tag.outputs.tag }}
     secrets:
       gitops_pat: ${{ secrets.GITOPS_PAT }}
+
+  # =====================================================================
+  #  DEBUG JOB - Print condition variables
+  # =====================================================================
+  debug-if:
+    if: ${{ always() }}
+    needs: [app-ci, manifests-ci, resolve-tag, resolve-branch]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Show evaluated context
+        run: |
+          echo "---- EVENT CONTEXT ----"
+          echo "event_name=${{ github.event_name }}"
+          echo "ref_name=${{ github.ref_name }}"
+          echo "actor=${{ github.actor }}"
+          echo "repository=${{ github.repository }}"
+          echo "run_attempt=${{ github.run_attempt }}"
+          echo "workflow_ref=${{ github.workflow_ref }}"
+          echo "---- TARGET BRANCH ----"
+          echo "resolve-branch.outputs.target_branch=${{ needs.resolve-branch.outputs.target_branch }}"
+          echo "---- JOB RESULTS ----"
+          echo "app-ci.result=${{ needs.app-ci.result }}"
+          echo "manifests-ci.result=${{ needs.manifests-ci.result }}"
+          echo "resolve-tag.result=${{ needs.resolve-tag.result }}"
+          echo "resolve-tag.outputs.tag=${{ needs.resolve-tag.outputs.tag }}"
+          echo "---- JOB OUTPUTS ----"
+          echo "app-ci outputs: ${{ toJSON(needs.app-ci.outputs) }}"
+          echo "manifests-ci outputs: ${{ toJSON(needs.manifests-ci.outputs) }}"
+          echo "resolve-branch outputs: ${{ toJSON(needs.resolve-branch.outputs) }}"
+          echo "---- FULL NEEDS OBJECT ----"
+          echo "${{ toJSON(needs) }}"
+
