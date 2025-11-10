@@ -128,7 +128,7 @@ jobs:
       (needs.resolve-branch.outputs.target_branch == 'dev' && needs.app-ci.result == 'success') ||
       (
         needs.resolve-branch.outputs.target_branch != 'dev' &&
-        ( !contains(needs.*, 'app-ci') || needs.app-ci.result == 'success' || needs.app-ci.result == 'skipped' ) &&
+        (needs.app-ci.result == 'success' || needs.app-ci.result == 'skipped' || needs.app-ci.result == '') &&
         (needs.manifests-ci.result == 'success' || needs.manifests-ci.result == 'skipped')
       )) }}
     outputs:
@@ -160,7 +160,7 @@ jobs:
       (needs.resolve-branch.outputs.target_branch == 'dev' && needs.app-ci.result == 'success') ||
       (
         needs.resolve-branch.outputs.target_branch != 'dev' &&
-        ( !contains(needs.*, 'app-ci') || needs.app-ci.result == 'success' || needs.app-ci.result == 'skipped' ) &&
+        (needs.app-ci.result == 'success' || needs.app-ci.result == 'skipped' || needs.app-ci.result == '') &&
         (needs.manifests-ci.result == 'success' || needs.manifests-ci.result == 'skipped')
       )) }}
     uses: nishanau/ci-cd-templates/.github/workflows/ci-gitops-bump.yml@main
