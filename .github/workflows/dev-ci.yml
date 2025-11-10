@@ -73,11 +73,25 @@ jobs:
               - 'policy/**'
 
   # =====================================================================
-  #  JOB 1: APP CI - Build, Test, Scan, Push Image
+  #  JOB 1: RESOLVE TARGET BRANCH (Unified for Push + PR)
+  # =====================================================================
+  resolve-branch:
+    runs-on: ubuntu-latest
+    outputs:
+      target_branch: ${{ steps.resolve.outputs.target_branch }}
+    steps:
+      - id: resolve
+        run: |
+          TARGET_BRANCH="${{ github.event.pull_request.base.ref || github.ref_name }}"
+          echo "Resolved target branch: $TARGET_BRANCH"
+          echo "target_branch=$TARGET_BRANCH" >> $GITHUB_OUTPUT
+
+  # =====================================================================
+  #  JOB 2: APP CI (only dev)
   # =====================================================================
   app-ci:
-    needs: [changes]
-    if: ${{ needs.changes.outputs.app == 'true' && github.ref_name == 'dev' }}
+    needs: [changes, resolve-branch]
+    if: ${{ needs.changes.outputs.app == 'true' && needs.resolve-branch.outputs.target_branch == 'dev' }}
     uses: nishanau/ci-cd-templates/.github/workflows/ci-app.yml@main
     with:
       image_name: nishans0/next-portfolio
@@ -90,14 +104,14 @@ jobs:
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
   # =====================================================================
-  #  JOB 2: MANIFESTS CI - Validate YAML & Policies
+  #  JOB 3: MANIFESTS CI
   # =====================================================================
   manifests-ci:
-    needs: [changes]
+    needs: [changes, resolve-branch]
     if: ${{ needs.changes.outputs.manifests == 'true' }}
     uses: nishanau/ci-cd-templates/.github/workflows/ci-manifests.yml@main
     with:
-      overlay_path: manifests/overlays/${{ github.ref_name }}
+      overlay_path: manifests/overlays/${{ needs.resolve-branch.outputs.target_branch }}
       tools_ref: "latest"
       policies_path: policy
       kubeconform_flags: "--strict --ignore-missing-schemas"
@@ -105,51 +119,54 @@ jobs:
     secrets: inherit
 
   # =====================================================================
-  #  JOB 3A: RESOLVE IMAGE TAG
+  #  JOB 4: RESOLVE IMAGE TAG
   # =====================================================================
   resolve-tag:
     runs-on: ubuntu-latest
-    needs: [app-ci, manifests-ci]
+    needs: [app-ci, manifests-ci, resolve-branch]
     if: ${{ always() && (
-      (github.ref_name == 'dev' && needs.app-ci.result == 'success') ||
+      (needs.resolve-branch.outputs.target_branch == 'dev' && needs.app-ci.result == 'success') ||
       (
-        github.ref_name != 'dev' &&
+        needs.resolve-branch.outputs.target_branch != 'dev' &&
         ( !contains(needs.*, 'app-ci') || needs.app-ci.result == 'success' || needs.app-ci.result == 'skipped' ) &&
         (needs.manifests-ci.result == 'success' || needs.manifests-ci.result == 'skipped')
       )) }}
+    outputs:
+      tag: ${{ steps.resolve_tag.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
 
       - id: resolve_tag
         run: |
-          if [[ "${{ github.ref_name }}" == "dev" ]]; then
+          TARGET_BRANCH="${{ needs.resolve-branch.outputs.target_branch }}"
+          if [[ "$TARGET_BRANCH" == "dev" ]]; then
             TAG="sha-${{ github.sha }}"
-          elif [[ "${{ github.ref_name }}" == "stage" ]]; then
+          elif [[ "$TARGET_BRANCH" == "stage" ]]; then
             TAG=$(yq e '.images[] | select(.name=="docker.io/nishans0/next-portfolio") | .newTag' manifests/overlays/dev/kustomization.yaml)
-          elif [[ "${{ github.ref_name }}" == "master" || "${{ github.ref_name }}" == "prod" ]]; then
+          elif [[ "$TARGET_BRANCH" == "prod" || "$TARGET_BRANCH" == "master" ]]; then
             TAG=$(yq e '.images[] | select(.name=="docker.io/nishans0/next-portfolio") | .newTag' manifests/overlays/stage/kustomization.yaml)
+          else
+            echo "Unknown branch: $TARGET_BRANCH" && exit 1
           fi
+          echo "Resolved TAG=$TAG for $TARGET_BRANCH"
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
-    outputs:
-      tag: ${{ steps.resolve_tag.outputs.tag }}
-
   # =====================================================================
-  #  JOB 3B: GITOPS BUMP - Update Image Tag in Manifest
+  #  JOB 5: GITOPS BUMP
   # =====================================================================
   bump-gitops:
-    needs: [app-ci, manifests-ci, resolve-tag]
+    needs: [app-ci, manifests-ci, resolve-tag, resolve-branch]
     if: ${{ always() && (
-      (github.ref_name == 'dev' && needs.app-ci.result == 'success') ||
+      (needs.resolve-branch.outputs.target_branch == 'dev' && needs.app-ci.result == 'success') ||
       (
-        github.ref_name != 'dev' &&
+        needs.resolve-branch.outputs.target_branch != 'dev' &&
         ( !contains(needs.*, 'app-ci') || needs.app-ci.result == 'success' || needs.app-ci.result == 'skipped' ) &&
         (needs.manifests-ci.result == 'success' || needs.manifests-ci.result == 'skipped')
       )) }}
     uses: nishanau/ci-cd-templates/.github/workflows/ci-gitops-bump.yml@main
     with:
       gitops_repo: nishanau/NextJSPortfolioSite
-      gitops_path: manifests/overlays/${{ github.ref_name }}/kustomization.yaml
+      gitops_path: manifests/overlays/${{ needs.resolve-branch.outputs.target_branch }}/kustomization.yaml
       image_name: docker.io/nishans0/next-portfolio
       image_tag: ${{ needs.resolve-tag.outputs.tag }}
     secrets:
