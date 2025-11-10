@@ -36,7 +36,7 @@ export default function Home() {
         <div className={styles.cta}>
           
           <Link href="/portfolio" className={styles.primaryButton}>
-            View My Projects
+            View My Work
           </Link>
           <Link href="/about" className={styles.secondaryButton}>
             My Experience
