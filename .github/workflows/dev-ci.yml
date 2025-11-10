@@ -11,21 +11,28 @@ name: Dev CI (App + Manifests + GitOps Bump)
 
 on:
   push:
-    branches: [dev, stage, master]
+    branches: [ "dev" ]
     paths:
-      - 'src/**'
-      - 'public/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'Dockerfile'
-      - '.dockerignore'
-      - 'next.config.mjs'
-      - 'eslint.config.mjs'
-      - 'jsconfig.json'
-      - 'tsconfig.json'
-      - 'manifests/**'
-      - 'policy/**'
-      - '.github/workflows/dev-ci.yml'
+      - "src/**"
+      - "public/**"
+      - "package.json"
+      - "package-lock.json"
+      - "Dockerfile"
+      - ".dockerignore"
+      - "next.config.mjs"
+      - "eslint.config.mjs"
+      - "jsconfig.json"
+      - "tsconfig.json"
+      - "manifests/**"
+      - "policy/**"
+      - ".github/workflows/dev-ci.yml"
+      
+  pull_request:
+    branches: [ "stage", "prod" ]
+    paths:
+      - "manifests/**"
+      - "policy/**"
+      - ".github/workflows/**"
 
 permissions:
   contents: write
