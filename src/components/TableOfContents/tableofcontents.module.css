@@ -1,0 +1,383 @@
+/* ============================================
+   TABLE OF CONTENTS - FIXED SIDEBAR
+   ============================================ */
+
+/* Mobile Toggle Button */
+.mobileToggle {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 999;
+  background: var(--bg);
+  border: 2px solid var(--text);
+  border-radius: 50px;
+  padding: 12px 20px;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+  font-family: var(--font);
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.9rem;
+  align-items: center;
+  gap: 8px;
+  display: none; /* Hidden by default on desktop */
+}
+
+.mobileToggle:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+.toggleIcon {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.toggleText {
+  white-space: nowrap;
+}
+
+/* Sidebar Container */
+.sidebar {
+  position: fixed;
+  top: 120px;
+  left: 20px;
+  width: 260px;
+  max-height: calc(100vh - 160px);
+  overflow-y: auto;
+  background: var(--bg);
+  border: 1px solid rgba(125, 125, 125, 0.2);
+  border-radius: 10px;
+  padding: 1.5rem;
+  z-index: 100;
+  transition: all 0.3s ease;
+}
+
+/* Custom Scrollbar */
+.sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: rgba(125, 125, 125, 0.1);
+  border-radius: 10px;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: rgba(125, 125, 125, 0.3);
+  border-radius: 10px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(125, 125, 125, 0.5);
+}
+
+.sidebarContent {
+  position: relative;
+  z-index: 1;
+}
+
+.sidebarTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid rgba(125, 125, 125, 0.2);
+}
+
+/* Navigation */
+.nav {
+  position: relative;
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Main Items (h2) */
+.mainItem {
+  margin-bottom: 0.25rem;
+}
+
+.mainItemWrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.mainLink {
+  flex: 1;
+  font-weight: 600;
+  font-size: 0.95rem;
+  border-left: 3px solid transparent;
+}
+
+/* Sub List (h3) */
+.subList {
+  list-style: none;
+  padding: 0;
+  margin: 0.25rem 0 0.5rem 0;
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.subItem {
+  margin-bottom: 0.25rem;
+}
+
+.subLink {
+  padding-left: 2rem;
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
+/* Link Styles */
+.link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: var(--font);
+  line-height: 1.4;
+  border-radius: 5px;
+  border-left: 3px solid transparent;
+}
+
+.linkText {
+  flex: 1;
+}
+
+.number {
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 2rem;
+  font-size: 0.85rem;
+}
+
+.link:hover {
+  color: var(--text);
+  background: rgba(125, 125, 125, 0.1);
+}
+
+.link.active {
+  color: #53c28b;
+  font-weight: 600;
+  background: rgba(83, 194, 139, 0.1);
+  border-left-color: #53c28b;
+}
+
+.link.active .number {
+  color: #53c28b;
+}
+
+/* Expand/Collapse Button */
+.expandButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.expandButton:hover {
+  background: rgba(125, 125, 125, 0.1);
+  color: var(--text);
+}
+
+.expandIcon {
+  font-size: 0.7rem;
+  transition: transform 0.2s ease;
+  display: inline-block;
+}
+
+.expandIcon.expanded {
+  transform: rotate(90deg);
+}
+
+/* Mobile Overlay */
+.overlay {
+  display: none;
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+
+/* Tablet and Below - Hide desktop sidebar */
+@media (max-width: 1200px) {
+  .sidebar {
+    left: 10px;
+    width: 240px;
+  }
+}
+
+/* Mobile - Slide-in sidebar from bottom */
+@media (max-width: 900px) {
+  .mobileToggle {
+    display: flex;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: auto;
+    bottom: -100%;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-height: 70vh;
+    border-radius: 20px 20px 0 0;
+    border: none;
+    border-top: 2px solid rgba(125, 125, 125, 0.2);
+    padding: 2rem 1.5rem;
+    z-index: 1000;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+    transition: bottom 0.3s ease;
+    /* Make background fully opaque - use filter to ensure no transparency */
+    background: var(--bg);
+    backdrop-filter: blur(10px);
+  }
+  
+  /* Ensure opaque background layer */
+  .sidebar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--bg);
+    opacity: 0.98;
+    z-index: -1;
+    border-radius: 20px 20px 0 0;
+  }
+
+  .sidebar.open {
+    bottom: 0;
+  }
+
+  .overlay {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .sidebarTitle {
+    font-size: 1.1rem;
+    text-align: center;
+  }
+
+  .link {
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+  }
+
+  .mainLink {
+    font-size: 1.05rem;
+  }
+
+  .subLink {
+    font-size: 0.95rem;
+    padding-left: 2.5rem;
+  }
+
+  .number {
+    min-width: 2.5rem;
+    font-size: 0.9rem;
+  }
+
+  .expandButton {
+    padding: 0.75rem;
+  }
+
+  .expandIcon {
+    font-size: 0.8rem;
+  }
+}
+
+/* Small Mobile Screens */
+@media (max-width: 480px) {
+  .mobileToggle {
+    bottom: 15px;
+    right: 15px;
+    padding: 10px 16px;
+    font-size: 0.85rem;
+  }
+
+  .toggleText {
+    display: none;
+  }
+
+  .toggleIcon {
+    font-size: 1.4rem;
+  }
+
+  .sidebar {
+    max-height: 60vh;
+    padding: 1.5rem 1rem;
+  }
+
+  .sidebarTitle {
+    font-size: 1rem;
+  }
+
+  .link {
+    font-size: 0.95rem;
+    padding: 0.65rem 0.75rem;
+  }
+
+  .mainLink {
+    font-size: 1rem;
+  }
+
+  .subLink {
+    font-size: 0.9rem;
+    padding-left: 2rem;
+  }
+
+  .number {
+    min-width: 2rem;
+    font-size: 0.85rem;
+  }
+}

@@ -1,37 +1,507 @@
 .container {
     display: flex;
     flex-direction: column;
-    gap: 100px;
+    gap: 30px;
     align-items: center;
-
-
 }
 
 .textContainer {
     display: flex;
     flex-direction: column;
-    gap: 40px;
+    gap: 30px;
     align-items: center;
+    max-width: 1100px;
+    width: 100%;
+    padding: 0 20px;
 }
+
 .imgContainer {
     width: 100%;
     height: 250px;
     position: relative;
 }
+
 .img {
     object-fit: cover;
-    
 }
+
 .imgText {
-    position:absolute;
-    bottom:20px;
+    position: absolute;
+    bottom: 20px;
     right: 20px;
     padding: 5px;
-    color: white ;
+    color: white;
     background: linear-gradient(to right, rgb(255, 255, 255), rgb(168, 12, 168));
     -webkit-background-clip: text;
-    background-clip: text; 
+    background-clip: text;
     -webkit-text-fill-color: transparent;
-    -webkit-text-stroke: 0.2px rgb(48, 74, 75);  
- 
+    -webkit-text-stroke: 0.2px rgb(48, 74, 75);
+}
+
+.sectionTitle {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 15px;
+    background: linear-gradient(to right, #53c28b, #4a90e2);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.aboutContent {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    text-align: justify;
+    line-height: 1.7;
+    font-size: 0.95rem;
+    max-width: 100%;
+}
+
+.aboutContent p {
+    margin: 0;
+}
+
+/* Journey Section */
+.journeySection {
+    width: 100%;
+    max-width: 1000px;
+}
+
+.journeySection .sectionTitle {
+    text-align: center;
+    position: relative;
+    padding-bottom: 15px;
+}
+
+.journeySection .sectionTitle::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120px;
+    height: 3px;
+    background: linear-gradient(to right, #53c28b, #4a90e2);
+}
+
+.timeline {
+    position: relative;
+    padding: 30px 0;
+    overflow: visible;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(to bottom, #53c28b, #4a90e2);
+    transform: translateX(-50%);
+}
+
+.timelineItem {
+    display: flex;
+    justify-content: flex-end;
+    padding-right: 50%;
+    position: relative;
+    margin-bottom: 35px;
+    overflow: visible;
+}
+
+.timelineItem:nth-child(even) {
+    justify-content: flex-start;
+    padding-left: 50%;
+    padding-right: 0;
+}
+
+.timelineItem::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 20px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #53c28b;
+    border: 4px solid var(--bg);
+    transform: translateX(-50%);
+    z-index: 2;
+    box-shadow: 0 0 0 4px rgba(83, 194, 139, 0.2);
+}
+
+.timelineDate {
+    position: absolute;
+    top: 15px;
+    left: calc(50% + 40px);
+    font-weight: 600;
+    color: #53c28b;
+    font-size: 0.95rem;
+    white-space: nowrap;
+}
+
+.timelineItem:nth-child(even) .timelineDate {
+    right: calc(50% + 40px);
+    left: auto;
+}
+
+.timelineContent {
+    background: var(--bg-secondary, rgba(255, 255, 255, 0.05));
+    padding: 20px;
+    border-radius: 12px;
+    width: calc(120% - 60px);
+    margin-right: 30px;
+    border: 1px solid rgba(83, 194, 139, 0.2);
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.timelineItem:nth-child(even) .timelineContent {
+    margin-left: 30px;
+    margin-right: 0;
+}
+
+.timelineContent:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(83, 194, 139, 0.15);
+    border-color: rgba(83, 194, 139, 0.4);
+}
+
+.timelineContent h3 {
+    margin: 0 0 10px 0;
+    color: #53c28b;
+    font-size: 1.2rem;
+}
+
+.timelineContent p {
+    margin: 0 0 8px 0;
+    line-height: 1.5;
+    color: var(--text-secondary, #bbb);
+    font-size: 0.95rem;
+}
+
+.timelineContent ul {
+    margin: 10px 0;
+    padding-left: 20px;
+    line-height: 1.6;
+}
+
+.timelineContent ul li {
+    margin-bottom: 8px;
+    color: var(--text-secondary, #bbb);
+    font-size: 0.9rem;
+}
+
+.timelineContent ul li strong {
+    color: var(--text-primary, #fff);
+}
+
+.projectLinks {
+    display: flex;
+    gap: 15px;
+    margin: 10px 0 5px 0;
+    flex-wrap: wrap;
+}
+
+.projectLinks a {
+    color: #4a90e2;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.projectLinks a:hover {
+    color: #53c28b;
+    text-decoration: underline;
+}
+
+.principle {
+    margin-top: 10px !important;
+    padding: 8px;
+    background: rgba(83, 194, 139, 0.1);
+    border-left: 3px solid #53c28b;
+    font-style: italic;
+    font-size: 0.9rem;
+}
+
+.retired {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 4px 12px;
+    background: rgba(255, 107, 107, 0.2);
+    border: 1px solid rgba(255, 107, 107, 0.5);
+    border-radius: 20px;
+    color: #ff6b6b;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.highlight {
+    margin: 0 !important;
+    padding: 15px;
+    background: rgba(74, 144, 226, 0.1);
+    border-left: 3px solid #4a90e2;
+    font-weight: 400;
+    font-style: italic;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    text-align: justify;
+}
+
+.mobileHighlight {
+    display: none;
+    padding: 10px;
+    margin-bottom: 12px;
+    background: rgba(74, 144, 226, 0.08);
+    border-left: 3px solid #4a90e2;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    text-align: justify;
+    color: var(--text-secondary, #bbb);
+}
+
+.hoverInfo {
+    position: absolute;
+    left: calc(110% + 20px);
+    top: 0;
+    width: 320px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.timelineContent:hover .hoverInfo {
+    opacity: 1;
+    visibility: visible;
+}
+
+.timelineItem:nth-child(even) .hoverInfo {
+    left: auto;
+    right: calc(100% + 20px);
+}
+
+.hoverInfo::before {
+    content: '';
+    position: absolute;
+    left: -10px;
+    top: 20px;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 10px 10px 10px 0;
+    border-color: transparent rgba(74, 144, 226, 0.3) transparent transparent;
+}
+
+.timelineItem:nth-child(even) .hoverInfo::before {
+    left: auto;
+    right: -10px;
+    border-width: 10px 0 10px 10px;
+    border-color: transparent transparent transparent rgba(74, 144, 226, 0.3);
+}
+
+/* Roadmap Section */
+.roadmapSection {
+    width: 100%;
+    max-width: 1200px;
+    padding: 40px 20px;
+}
+
+.roadmapGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+    gap: 40px;
+    margin-top: 40px;
+}
+
+.roadmapColumn {
+    background: var(--bg-secondary, rgba(255, 255, 255, 0.05));
+    padding: 30px;
+    border-radius: 12px;
+    border: 1px solid rgba(83, 194, 139, 0.2);
+    transition: all 0.3s ease;
+}
+
+.roadmapColumn:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(83, 194, 139, 0.15);
+}
+
+.roadmapColumn h2 {
+    font-size: 1.6rem;
+    margin-bottom: 25px;
+    color: #53c28b;
+}
+
+.roadmapList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.roadmapList li {
+    padding: 15px 0 15px 35px;
+    position: relative;
+    line-height: 1.6;
+    color: var(--text-secondary, #bbb);
+    border-bottom: 1px solid rgba(83, 194, 139, 0.1);
+}
+
+.roadmapList li:last-child {
+    border-bottom: none;
+}
+
+.roadmapList li::before {
+    content: '✓';
+    position: absolute;
+    left: 0;
+    color: #53c28b;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+.roadmapColumn:last-child .roadmapList li::before {
+    content: '→';
+    color: #4a90e2;
+}
+
+.roadmapList li strong {
+    color: var(--text-primary, #fff);
+    display: block;
+    margin-bottom: 5px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .container {
+        gap: 40px;
+    }
+
+    .hoverInfo {
+        display: none;
+    }
+
+    .mobileHighlight {
+        display: block;
+    }
+
+    .timeline::before {
+        left: 20px;
+    }
+
+    .timelineItem,
+    .timelineItem:nth-child(even) {
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: flex-start;
+        padding-left: 60px;
+        padding-right: 0;
+    }
+
+    .timelineItem::before {
+        left: 20px;
+        top: 30px;
+        transform: translateX(0);
+    }
+
+    .timelineDate {
+        position: static;
+        margin-bottom: 10px;
+        display: block;
+        font-size: 0.85rem;
+        padding-left: 10px;
+    }
+
+    .timelineItem:nth-child(even) .timelineDate {
+        position: static;
+    }
+
+    .timelineContent,
+    .timelineItem:nth-child(even) .timelineContent {
+        width: 100%;
+        margin: 0;
+        padding: 20px;
+    }
+
+    .sectionTitle {
+        font-size: 2rem;
+    }
+
+    .roadmapGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .roadmapColumn {
+        min-width: auto;
+    }
+
+    .textContainer {
+        gap: 20px;
+    }
+
+    .aboutContent {
+        gap: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        gap: 30px;
+    }
+
+    .journeySection,
+    .roadmapSection {
+        padding: 30px 10px;
+    }
+
+    .timeline::before {
+        left: 15px;
+    }
+
+    .timelineItem,
+    .timelineItem:nth-child(even) {
+        padding-left: 50px;
+    }
+
+    .timelineItem::before {
+        left: 15px;
+        top: 28px;
+        width: 16px;
+        height: 16px;
+        border-width: 3px;
+    }
+
+    .timelineContent,
+    .timelineItem:nth-child(even) .timelineContent {
+        width: 100%;
+        padding: 16px;
+    }
+
+    .timelineDate {
+        margin-bottom: 8px;
+        font-size: 0.8rem;
+    }
+
+    .aboutContent {
+        font-size: 0.9rem;
+        gap: 10px;
+    }
+
+    .textContainer {
+        gap: 15px;
+    }
+
+    .projectLinks {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .timelineItem {
+        margin-bottom: 40px;
+    }
 }

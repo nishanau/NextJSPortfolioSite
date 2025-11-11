@@ -208,15 +208,15 @@ manifests/
 ```
 
 ### 6.3 Example Deployment (next-portfolio)
-All manifests are represented in yaml format. The first line has apiVersion: apps/v1 and networking.k8s.io/v1 for Ingress, the next is kind: Deployment, this is where we define if it is a Deployment or Service or Ingress. The next field is metadata, where we define the name and labels and annotations of the yaml.  The next field is spec where we define the specifications of the pod. Inside spec, we have replicas (defines how many copies of the pod to deploy), selector (used by the deployment or service to find the pod its serves), then we have template,  which defines the specifications of the container inside the pod. Inside template we have metadata which has labels, this label must match the spec.selector defined above. After metadata, we have spec which defines the specification of the container/s. Inside spec, we have containers and under this we have – name (name of container). Note: The ‘-’ sign means array, i.e if we have multiple containers then each ‘–name’ would signify a separate container insde template.spec.containers. After name we have image (image of container), ports.containerPort (ports the container listens to, 3000 in our case), env (env.name and env.value ). 
-We can also add liveness, readiness probes. Liveness probe checks if the app inside the container are live and readiness probes checks if the app is ready to serve. We can also add resource limits using resources,  
+All manifests are represented in yaml format. The first line has apiVersion: apps/v1 and networking.k8s.io/v1 for Ingress, the next is kind: Deployment, this is where I define if it is a Deployment or Service or Ingress. The next field is metadata, where I define the name and labels and annotations of the yaml.  The next field is spec where I define the specifications of the pod. Inside spec, I have replicas (defines how many copies of the pod to deploy), selector (used by the deployment or service to find the pod its serves), then I have template,  which defines the specifications of the container inside the pod. Inside template I have metadata which has labels, this label must match the spec.selector defined above. After metadata, I have spec which defines the specification of the container/s. Inside spec, I have containers and under this I have – name (name of container). Note: The ‘-’ sign means array, i.e if I have multiple containers then each ‘–name’ would signify a separate container insde template.spec.containers. After name I have image (image of container), ports.containerPort (ports the container listens to, 3000 in our case), env (env.name and env.value ). 
+I can also add liveness, readiness probes. Liveness probe checks if the app inside the container are live and readiness probes checks if the app is ready to serve. I can also add resource limits using resources,  
  
-We used strategy in spec.strategy to define how updates are rolled i.e. RollingUpdate(currently used) that runs the updated pod first before killing the old pod ensureing no downtime. The other option is Recreate which kills old pod before starting the new one. We used annotations so that other tools like prometheus can track the data for monitoring.
+I used strategy in spec.strategy to define how updates are rolled i.e. RollingUpdate(currently used) that runs the updated pod first before killing the old pod ensureing no downtime. The other option is Recreate which kills old pod before starting the new one. I used annotations so that other tools like prometheus can track the data for monitoring.
 
 **Security:** 
-We set a different serviceAccouintName (default if not set) than default to make sure the pod doesnt have priveleges more that necessary.  We also used securityContext inside the container to make sure the user inside the container is not root by default and operates on least priveleges. We deliberately give the UID, GID, not allow privelege escalation, and only read root files.  
+I set a different serviceAccouintName (default if not set) than default to make sure the pod doesnt have priveleges more that necessary.  I also used securityContext inside the container to make sure the user inside the container is not root by default and operates on least priveleges. I deliberately give the UID, GID, not allow privelege escalation, and only read root files.  
 
-We finally used lifecycle field for lifecycle events like run immediately after container starts (postStart) and run before container is stopped (preStop). 
+I finally used lifecycle field for lifecycle events like run immediately after container starts (postStart) and run before container is stopped (preStop). 
  
 Here is the final deployment.yaml of the next-portfolio app/pod/container. 
 base/deployment.yaml:
@@ -249,14 +249,14 @@ spec:
     metadata:
       labels:
         app: next-portfolio  # must match selector above
-      # used for storing non-identifying information, here we use it for
+      # used for storing non-identifying information, here I use it for
       # tracking deployment time
       annotations:
         prometheus.io/scrape: "true"  # enables prometheus scraping
         prometheus.io/port: "3000"  # port on which prometheus will scrape
         prometheus.io/path: "/metrics"  # path for prometheus scraping
     spec:  # specification of the pod
-      # service account for the pod, if we use default, it has more
+      # service account for the pod, if I use default, it has more
       # privileges than needed
       serviceAccountName: next-portfolio-sa
       securityContext:
@@ -265,7 +265,7 @@ spec:
         runAsUser: 10001  # run pod as user with UID 10001
         runAsGroup: 30001  # run pod as group with GID 30001
       # automatically mount the service account token, since the app doesnt
-      # need to interact with API server, we disable it for security
+      # need to interact with API server, I disable it for security
       automountServiceAccountToken: false
       # time to wait before forcefully killing the pod
       terminationGracePeriodSeconds: 20
@@ -314,7 +314,7 @@ spec:
               memory: "512Mi"
               cpu: "500m"
               ephemeral-storage: "2Gi"
-          # security options for the container. We are giving UID and GID
+          # security options for the container. I are giving UID and GID
           # to run the container as non-root user for security
           securityContext:
             allowPrivilegeEscalation: false  # do not allow privilege escalation
@@ -335,7 +335,7 @@ spec:
 
 ```
 **base/service.yaml**
-We created a service for the app, it will find our app using spec.selector field which should match with spec.template.metadata.label of the pod in the deployment. The service creates a binding that will bind its 80 port to 3000 port of the pod. It is of type clusterIP which means it can only be accessed inside the cluster.
+I created a service for the app, it will find our app using spec.selector field which should match with spec.template.metadata.label of the pod in the deployment. The service creates a binding that will bind its 80 port to 3000 port of the pod. It is of type clusterIP which means it can only be accessed inside the cluster.
 ```yaml
 ---
 apiVersion: v1
@@ -491,7 +491,7 @@ patches:
 ```
 
 ### 6.4 Pre-Deploy Tests
-At this point we have written the yaml files. Before we commit these, we performed the following tests.
+At this point I have written the yaml files. Before I commit these, I performed the following tests.
 #### YAML Lint
 ```bash
 yamllint manifests/
@@ -539,7 +539,7 @@ Output of first test:
 
 
 #### Policy Tests
-We used conftest to test the custom policies we created which are stored in policy folder. Some of the policies we have are as follows.
+I used conftest to test the custom policies I created which are stored in policy folder. Some of the policies I have are as follows.
 ```bash
 kustomize build manifests/overlays/dev | conftest test -
 ```
@@ -554,7 +554,7 @@ Policies enforced:
 
 
 ## 7. Argo CD Apps
-Now that the pre-deploy tests have been completed, we created an ArgoCD app. We accessed the argoCD portal from its LoadBalancerIP (192.168.101.221 in our case).  We created a project named porfolio-apps first with following configurations:
+Now that the pre-deploy tests have been completed, I created an ArgoCD app. I accessed the argoCD portal from its LoadBalancerIP (192.168.101.221 in our case).  I created a project named porfolio-apps first with following configurations:
 
 ###TIP
 This makes ingress controller update the latest ip addresses used by the load balancer and services. 
@@ -564,10 +564,10 @@ kubectl -n ingress-nginx patch deploy ingress-nginx-controller \
   -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--publish-service=$(POD_NAMESPACE)/ingress-nginx-controller"}]'
 ```
 SOURCE REPOSITORIES: https://github.com/nishanau/NextJSPortfolioSite.git 
-DESTINATIONS: We will only allow the apps in this projects to run in dev, stage and prod namespaces only for now.
+DESTINATIONS: I will only allow the apps in this projects to run in dev, stage and prod namespaces only for now.
 
-After setting up the project, we created an app each for each namespace; dev, stage and prod.  
-We can use the GUI or a manifest yaml to set up the apps. 
+After setting up the project, I created an app each for each namespace; dev, stage and prod.  
+I can use the GUI or a manifest yaml to set up the apps. 
 Here’s the manifest of the next-portfolio-dev app: 
 
 Example app manifest:
@@ -599,13 +599,13 @@ syncPolicy:
 
 ---
 
-## 8. GitHub Actions (CI/CD)
+## 8. GitHub Actions (CI)
 Initially combined, later split into:
 - **CI:** Lint, validate, build, and push Docker image.
 - **CD:** Sync updated image tag via ArgoCD.
 
 ***Thought Process and Evolution:***
-*Initially, during brainstorming and designing the CI-flows, I thought a single flow that would build and push the image would be enough. As I dug deep, I realized, the pre deployment tests for manifests like yamllint, conftest, kube-score, etc need to be tested on every manifest update as well. This meant I would need 2 sets of tests, one for the app code and the other to test the infra code. After this I realized that its better to have separate workflows for app updates and infra code updates. We have a monorepo i.e. the GitOps Repo and the App repo is in a single repo. First, I started creating pre-deploy test flows for infra. The first test flow would install all the test tools in the vm for every flow. This was inefficient so I decided to create and push a container (tools-container) that would install and host all the test tools. Then our infra CI flow will use this container and test the infra code in it. However, if I need to make changes to the container, I would need to manually edit the dockerfile, then build it and push it. So, I thought maybe I should create a flow that will run when the dockerfile is changed. This gave me another insight; this container only has the test tools installed which can be used to test any manifests in any repo and I have many apps that I want to host in the cluster later on. So, if I make this a reusable image then all the repos I want can call it. This prompted me to create a ci-cd-templates repository which would host all reusable workflows for CI, dockerfile and package building. The dockerfile for the tools container is in `ci-images/pre-deploy-test-tools` directory. Any commit that contains change to this dockerfile will call `build-pre-deploy-tools.yml` which will build the latest package and push it to ghcr.io.  With the ci-cd-template repo created, I wanted to standardize my CI for app and infra code as well. Hence, I created  `ci-app.yml`, `ci-manifests.yml` and `ci-gitops-bump.yml` workflows. These are reusable workflows which is used by my **Next Portfolio** app and will be used by apps I deploy in the future. These workflows are the backbone of my scalable CI/CD End-to-End deployment. There is clear separation of concerns between different branches, as the workflows will only work on the files of the specific branch mentioned in the input but the calling workflow.*
+*Initially, during brainstorming and designing the CI-flows, I thought a single flow that would build and push the image would be enough. As I dug deep, I realized, the pre deployment tests for manifests like yamllint, conftest, kube-score, etc need to be tested on every manifest update as well. This meant I would need 2 sets of tests, one for the app code and the other to test the infra code. After this I realized that its better to have separate workflows for app updates and infra code updates. I have a monorepo i.e. the GitOps Repo and the App repo is in a single repo. First, I started creating pre-deploy test flows for infra. The first test flow would install all the test tools in the vm for every flow. This was inefficient so I decided to create and push a container (tools-container) that would install and host all the test tools. Then our infra CI flow will use this container and test the infra code in it. However, if I need to make changes to the container, I would need to manually edit the dockerfile, then build it and push it. So, I thought maybe I should create a flow that will run when the dockerfile is changed. This gave me another insight; this container only has the test tools installed which can be used to test any manifests in any repo and I have many apps that I want to host in the cluster later on. So, if I make this a reusable image then all the repos I want can call it. This prompted me to create a ci-cd-templates repository which would host all reusable workflows for CI, dockerfile and package building. The dockerfile for the tools container is in `ci-images/pre-deploy-test-tools` directory. Any commit that contains change to this dockerfile will call `build-pre-deploy-tools.yml` which will build the latest package and push it to ghcr.io.  With the ci-cd-template repo created, I wanted to standardize my CI for app and infra code as well. Hence, I created  `ci-app.yml`, `ci-manifests.yml` and `ci-gitops-bump.yml` workflows. These are reusable workflows which is used by my **Next Portfolio** app and will be used by apps I deploy in the future. These workflows are the backbone of my scalable CI/CD End-to-End deployment. There is clear separation of concerns between different branches, as the workflows will only work on the files of the specific branch mentioned in the input but the calling workflow.*
 
 ### nishanau/ci-cd-templates/.github/workflows/ci-app.yml
 This workflow will be called when there is change in the app related code, for example, adding new features, resolving code, etc. Any app can call this flow for its CI and when calling, the calling flow must provide the required inputs as mentioned in this flow for it to function properly. This workflow will containerize, test (automated dev related test like unit tests,etc.), lint, build, push and test the build image for vulnerabilities.
@@ -747,7 +747,7 @@ jobs:
 ````
 
 ### nishanau/ci-cd-templates/.github/workflows/ci-manifests.yml
-This reusable workflow will use the tools test container that we created to test the manifests genereated. It will then test the manifests in the container and outputs the results. Calling workflows can use inputs to specify different variants of tests that can be run. It also publishes the results to Code Scanning Alerts which can be viewed from Security/Code Scanner tab for security related issues.
+This reusable workflow will use the tools test container that I created to test the manifests genereated. It will then test the manifests in the container and outputs the results. Calling workflows can use inputs to specify different variants of tests that can be run. It also publishes the results to Code Scanning Alerts which can be viewed from Security/Code Scanner tab for security related issues.
 ````yaml
 # Reusable workflow that validates Kubernetes manifests before deploy
 name: ci-manifests
@@ -987,7 +987,7 @@ jobs:
 ````
 
 ### nishanau/NextJSPortfolioSite/.github/workflows/dev-ci.yml
-This is the app specific CI workflow for our next-portfolio app. This is where our reusable workflows will be called. Firstly, it detects the files that have changed and based on the output of this detection it will decide to run Job2 (ci-app) and/or Job3 (ci-manifests) or not. If any app related files changed, it will run Job2, which will use ci-app.yml and builds, tests, and publishes the latest image with the commit sha as the tag. If any files related to manifests or policies change then Job 2 (ci-manifests) will cann ci-manifests.yml which will test the manifests and gives the output. If both of these tests pass then it will proceed with gitops version bump. There are some scenarios that decide whether this version bump gets triggered or not given in the table below.
+This is the app specific CI workflow for our next-portfolio app. This is where our reusable workflows will be called. Firstly, it detects the files that have changed and based on the output of this detection it will decide to run Job2 (ci-app) and/or Job3 (ci-manifests) or not. If any app related files changed, it will run Job2, which will use ci-app.yml and builds, tests, and publishes the latest image with the commit sha as the tag. If any files related to manifests or policies change then Job 2 (ci-manifests) will call ci-manifests.yml which will test the manifests and gives the output. If both of these tests pass then it will proceed with gitops version bump. There are some scenarios that decide whether this version bump gets triggered or not given in the table below.
 
 ### 🧩 Unified Tag Bump Scenario Table
 
@@ -1177,8 +1177,192 @@ jobs:
 ````
 
 ## Final CI/CD (End-to-End Flow)
-![CI/CD + GitOps Architecture](./flow-1.svg)
+![CI/CD + GitOps Architecture](./public/enterprise_cicd_k8s/cicd_flow.svg)
 
+## 9. Exposing the app to the Internet (Cloudflared)
+
+I created a separate repo `nishanau/infra-gitops` to host anything related to infrastructure and in the future I will also host the manifests for other apps here. For now, I have used CLoudflared which hosts my domain name `nishdevops.org` to provide tunnelling service to the cluster making the app accessible online. 
+
+**File Structure in the repo**
+
+cloudflared/
+├── base/
+│ ├── configmap.yaml
+│ ├── deployment.yaml
+│ ├── kustomization.yaml
+│
+├── overlays/
+│ └── prod/
+
+**Note:** Currently I have injected the tunnel token manually into the cluster which is why the current `configmaps.yaml` isn't being enforced. In future, I plan to deploy secret management and after that, I will make the cloudlfared deployment use the configmap. 
+````bash
+kubectl create secret generic cloudflared-tunnel-token \
+  --from-literal=TUNNEL_TOKEN='YOUR_TOKEN_HERE' \
+  -n cloudflared
+````
+
+### infra-gitops/cloudflared/base/deployment.yaml
+````yaml
+# ============================================================
+# Deployment: cloudflared
+# Purpose:
+#   Runs a Cloudflare Tunnel connector inside the cluster.
+#   Establishes a secure outbound-only connection to Cloudflare’s edge,
+#   eliminating the need for public ingress or exposed ports.
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflared
+  namespace: cloudflared
+  labels:
+    app: cloudflared
+
+spec:
+  # ------------------------------------------------------------
+  # Only one replica is required; Cloudflare handles HA on its end.
+  # You can scale to multiple replicas for redundancy if desired.
+  # ------------------------------------------------------------
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: cloudflared
+
+  template:
+    metadata:
+      labels:
+        app: cloudflared
+
+    spec:
+      containers:
+        - name: cloudflared
+          image: cloudflare/cloudflared:latest
+          imagePullPolicy: Always
+
+          # ----------------------------------------------------
+          # Run the connector in token-based mode.
+          # "--no-autoupdate" prevents background updates, keeping
+          # image immutability for CI/CD control.
+          # ----------------------------------------------------
+          args:
+            - tunnel
+            - --no-autoupdate
+            - --metrics
+            - 0.0.0.0:2000
+            - --loglevel
+            - info
+            - run
+            - --token
+            - $(TUNNEL_TOKEN)
+
+          # ----------------------------------------------------
+          # Inject the Cloudflare-issued tunnel token
+          # securely from Kubernetes Secret.
+          # ----------------------------------------------------
+          env:
+            - name: TUNNEL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: cloudflared-credentials   # must exist in same namespace
+                  key: tunnel-token               # token field name inside secret
+
+          # ----------------------------------------------------
+          # Health checks for self-healing and readiness signaling.
+          # Cloudflared exposes a /ready endpoint on port 2000.
+          # ----------------------------------------------------
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: 2000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 2000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+          # ----------------------------------------------------
+          # Resource allocation:
+          #   Requests ensure minimal guaranteed CPU/memory.
+          #   Limits prevent runaway resource consumption.
+          # Cloudflared is lightweight and stable within these bounds.
+          # ----------------------------------------------------
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+
+          # ----------------------------------------------------
+          # Optionally expose /metrics (port 2000) for Prometheus.
+          # This line is harmless even if Prometheus is absent.
+          # ----------------------------------------------------
+          ports:
+            - containerPort: 2000
+              name: metrics
+
+      # --------------------------------------------------------
+      # Restart policy: always keep the tunnel alive.
+      # --------------------------------------------------------
+      restartPolicy: Always
+````
+
+### infra-gitops/cloudflared/base/configmap.yaml
+
+
+````yaml
+# ------------------------------------------------------------
+# ConfigMap: cloudflared-config
+# Purpose:
+#   Holds the tunnel routing configuration for all apps.
+#   Each hostname entry maps a public domain to the internal
+#   Kubernetes service (typically the ingress controller).
+# ------------------------------------------------------------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudflared-config
+  namespace: cloudflared
+data:
+  # File name inside container (cloudflared expects config.yaml)
+  config.yaml: |
+    # Unique identifier for the tunnel (shown in Cloudflare dashboard)
+    tunnel: shared-tunnel
+
+    # Path where credentials will be mounted in the container
+    credentials-file: /etc/cloudflared/creds/credentials.json
+
+    # --------------------------------------------------------
+    # Ingress rules — top to bottom evaluation order.
+    # Each rule defines a Cloudflare hostname and the local
+    # service that receives that traffic.
+    # --------------------------------------------------------
+    ingress:
+      - hostname: portfolio.nishdevops.org
+        service: http://ingress-nginx-controller.ingress-nginx.svc.cluster.local:80
+      - hostname: portgolio-stage.nishdevops.org
+        service: http://ingress-nginx-controller.ingress-nginx.svc.cluster.local:80
+
+      # Fallback route — returns 404 for unknown hostnames
+      - service: http_status:404
+````
+### infra-gitops/cloudflared/base/kustomization.yaml
+
+````yaml
+resources:
+  - configmap.yaml
+  - deployment.yaml
+````
 
 ---
 
