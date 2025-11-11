@@ -18,6 +18,15 @@ const uiux = [
 const devops = [
   {
     id: 1,
+    title: "Enterprise-Grade Kubernetes CI/CD System",
+    description:
+      "Built a production-ready Kubernetes CI/CD pipeline from scratch on a 3-node bare-metal cluster with GitOps principles using ArgoCD, multi-environment architecture (dev/staging/production), and comprehensive security policies. Implemented reusable GitHub Actions workflows, Kustomize-based configuration management, Cloudflare Tunnel integration for secure public access, and automated infrastructure validation with policy enforcement. This enterprise-grade system demonstrates the evolution from rapid prototyping to scalable, secure, and maintainable infrastructure following industry best practices.",
+    image: "/enterprise_cicd_k8s/banner_cicd.png",
+    category: "devops-projects",
+    slug: "enterprise-grade-kubernetes-cicd",
+  },
+  {
+    id: 2,
     title: "CI/CD Dockerized App Deployment on AWS",
     description:
       "Built a production-grade DevOps pipeline deploying my Next.js portfolio from GitHub to AWS EC2 using Docker, Nginx, and GitHub Actions. It automates multi-stage Docker builds, pushes to Docker Hub, and deploys with automatic container restarts. Configured Nginx with Certbot for HTTPS, provisioned EC2 with Docker, and set up Prometheus and Grafana for monitoring container health and resource usage. Gained skills in Docker optimization, CI/CD automation, secure deployment, AWS management, and production-grade observability.",
@@ -26,7 +35,7 @@ const devops = [
     slug: "cicd-dockerized-app-deployment-aws",
   },
   {
-    id: 2,
+    id: 3,
     title: "CI/CD Kubernetes App Deployment via Minikube & Cloudflare Tunnel",
     description:
       "Deployed my NextJS portfolio apps inside a private Kubernetes cluster using Minikube on a Hyper-V Ubuntu VM, with secure public access via a persistent Cloudflare Tunnel linked to a custom domain. The fully automated CI/CD pipeline leverages GitHub Actions with a self-hosted runner on the VM to build, push Docker images, and redeploy the app using Kubernetes Deployments, Services, and NGINX Ingress. I configured systemd services for auto-start of Minikube and the Cloudflare Tunnel, gaining hands-on experience with Kubernetes orchestration, Cloudflare’s Zero Trust tunneling, self-hosted runners, and production-grade automation and DNS management.",

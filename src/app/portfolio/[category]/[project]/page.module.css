@@ -1,9 +1,21 @@
 .container {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 2rem;
   font-family: var(--font);
   line-height: 1.6;
+}
+
+.pageWrapper {
+  display: flex;
+  gap: 2rem;
+  position: relative;
+}
+
+.mainContent {
+  flex: 1;
+  margin-left: 280px; /* Space for fixed sidebar */
+  max-width: 900px;
 }
 
 .header {
@@ -24,14 +36,28 @@
   margin-bottom: 2rem;
   border-radius: 10px;
   overflow: hidden;
+  background: rgba(125, 125, 125, 0.05);
 }
 
 .image {
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .content {
   color: var(--text);
+  counter-reset: h2-counter; /* Initialize counter for h2 */
+}
+
+/* Images within content should maintain aspect ratio */
+.content .imageContainer {
+  height: auto;
+}
+
+.content .imageContainer img {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  position: relative;
 }
 
 .content h2 {
@@ -39,6 +65,18 @@
   margin-top: 2rem;
   margin-bottom: 1rem;
   color: var(--text);
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid rgba(125, 125, 125, 0.3);
+  scroll-margin-top: 100px; /* Offset for fixed header */
+  counter-increment: h2-counter; /* Increment h2 counter */
+  counter-reset: h3-counter; /* Reset h3 counter for each h2 */
+}
+
+.content h2::before {
+  content: counter(h2-counter) ". ";
+  color: #53c28b;
+  font-weight: 700;
+  margin-right: 0.5rem;
 }
 
 .content h3 {
@@ -46,6 +84,26 @@
   margin-top: 1.5rem;
   margin-bottom: 0.75rem;
   color: var(--text);
+  scroll-margin-top: 100px; /* Offset for fixed header */
+  counter-increment: h3-counter; /* Increment h3 counter */
+  padding-left: 1rem;
+}
+
+.content h3::before {
+  content: counter(h2-counter) "." counter(h3-counter) " ";
+  color: #53c28b;
+  font-weight: 600;
+  margin-right: 0.5rem;
+}
+
+.content h4 {
+  font-size: 1.1rem;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  color: var(--text);
+  scroll-margin-top: 100px;
+  padding-left: 2rem;
+  font-weight: 600;
 }
 
 .content p, 
@@ -71,28 +129,145 @@
 }
 
 .codeContainer {
-  background-color: rgb(40, 44, 52);
+  background-color: rgba(125, 125, 125, 0.1);
+  border: 1px solid rgba(125, 125, 125, 0.2);
   border-radius: 8px;
   overflow: auto;
   margin-bottom: 1.5rem;
   padding: 1rem;
 }
 
-.codeContainer pre {
-  margin: 0;
+.codeContainer h4 {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  color: var(--text);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.codeContainer ul {
+  margin-bottom: 0;
+  color: var(--text);
+}
+
+.codeContainer li {
+  color: var(--text);
+}
+
+.codeContainer strong {
+  color: var(--text);
 }
 
 .codeContainer code {
+  background-color: rgba(125, 125, 125, 0.2);
+  color: var(--text);
+}
+
+.codeContainer pre {
+  margin: 0;
+  background-color: rgb(40, 44, 52);
+  padding: 1rem;
+  border-radius: 6px;
+}
+
+.codeContainer pre code {
   color: #f8f8f2;
   background: transparent;
   font-family: 'Courier New', Courier, monospace;
   white-space: pre;
 }
 
+.flowDiagram {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.imageCaption {
+  text-align: center;
+  font-style: italic;
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+/* Project Links Styling */
+.linksContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.projectLink {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background: rgba(83, 194, 139, 0.1);
+  border: 2px solid rgba(83, 194, 139, 0.3);
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--text);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.projectLink:hover {
+  background: rgba(83, 194, 139, 0.2);
+  border-color: #53c28b;
+  transform: translateX(5px);
+  box-shadow: 0 4px 15px rgba(83, 194, 139, 0.2);
+}
+
+.linkIcon {
+  font-size: 2rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.linkContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.linkLabel {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.linkUrl {
+  font-size: 0.9rem;
+  color: #53c28b;
+  font-weight: 500;
+}
+
 /* Media Queries for Responsive Design */
+@media (max-width: 1200px) {
+  .mainContent {
+    margin-left: 260px;
+  }
+}
+
 @media (max-width: 900px) {
+  .mainContent {
+    margin-left: 0;
+    max-width: 100%;
+  }
+
+  .pageWrapper {
+    display: block;
+  }
+  
   .imageContainer {
     height: 350px;
+  }
+
+  .content .imageContainer {
+    min-height: 300px;
   }
   
   .title {
@@ -108,6 +283,10 @@
   .imageContainer {
     height: 300px;
   }
+
+  .content .imageContainer {
+    min-height: 250px;
+  }
   
   .title {
     font-size: 1.75rem;
@@ -119,6 +298,32 @@
   
   .content h3 {
     font-size: 1.25rem;
+    padding-left: 0.5rem;
+  }
+
+  .content h3::before {
+    margin-right: 0.35rem;
+  }
+
+  .content h4 {
+    padding-left: 1rem;
+    font-size: 1.05rem;
+  }
+
+  .projectLink {
+    padding: 0.875rem 1.25rem;
+  }
+
+  .linkIcon {
+    font-size: 1.75rem;
+  }
+
+  .linkLabel {
+    font-size: 0.95rem;
+  }
+
+  .linkUrl {
+    font-size: 0.85rem;
   }
 }
 
@@ -130,8 +335,47 @@
   .imageContainer {
     height: 250px;
   }
-  
+
+  .content .imageContainer {
+    min-height: 200px;
+  }
+
   .title {
     font-size: 1.5rem;
+  }
+
+  .content h2::before {
+    margin-right: 0.25rem;
+  }
+
+  .content h3 {
+    padding-left: 0.25rem;
+    font-size: 1.1rem;
+  }
+
+  .content h3::before {
+    margin-right: 0.25rem;
+  }
+
+  .content h4 {
+    padding-left: 0.5rem;
+    font-size: 1rem;
+  }
+
+  .projectLink {
+    padding: 0.75rem 1rem;
+    gap: 0.75rem;
+  }
+
+  .linkIcon {
+    font-size: 1.5rem;
+  }
+
+  .linkLabel {
+    font-size: 0.9rem;
+  }
+
+  .linkUrl {
+    font-size: 0.8rem;
   }
 }
