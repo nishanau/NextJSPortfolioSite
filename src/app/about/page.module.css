@@ -195,7 +195,7 @@
 }
 
 .timelineContent ul li strong {
-    color: var(--text-primary, #fff);
+    color: var(--text);
 }
 
 .projectLinks {
@@ -371,7 +371,7 @@
 }
 
 .roadmapList li strong {
-    color: var(--text-primary, #fff);
+    color: var(--text);
     display: block;
     margin-bottom: 5px;
 }
