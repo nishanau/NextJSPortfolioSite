@@ -6,10 +6,10 @@ const Footer = () => {
     <div className={styles.container}>
       <div> 2025 Nishan. All rights reserved</div>
       <div className={styles.social}>
-        <Image src="/1.png" className={styles.icons} width={20} height={20} alt='facebook account logo' />
-        <Image src="/2.png" className={styles.icons} width={20} height={20} alt='LinkedIn account logo' />
-        <Image src="/3.png" className={styles.icons} width={20} height={20} alt='facebook account logo' />
-        <Image src="/4.png" className={styles.icons} width={20} height={20} alt='facebook account logo' /></div>
+        <a href="https://linkedin.com/in/nishan-shrestha-930a8a24a" target="_blank" rel="noopener noreferrer">
+          <Image src="/LinkedIn_logo.png" className={styles.icons} width={20} height={20} alt='LinkedIn account logo' />
+        </a>
+      </div>
     </div>
   )
 }
