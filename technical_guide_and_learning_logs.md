@@ -43,7 +43,7 @@ Install `kubelet`, `kubeadm`, and `kubectl`. These form the core of Kubernetes.
 ## 3. Control Plane Initialization
 Initialize control-plane and configure networking.
 
-**Reflection:** Similar to promoting a domain controller — defines the cluster brain.
+**Reflection:** Similar to promoting a domain controller, defines the cluster brain.
 
 | Command | Purpose | Why Necessary | Verification |
 |----------|----------|----------------|---------------|
@@ -52,7 +52,7 @@ Initialize control-plane and configure networking.
 | `mkdir -p $HOME/.kube`<br>`sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config`<br>`sudo chown $(id -u):$(id -g) $HOME/.kube/config` | Configure `kubectl` for the current user | Copies the admin kubeconfig to the user’s home directory and adjusts ownership so `kubectl` commands can be executed without `sudo`. Without this, you’d need elevated privileges for every command. | `kubectl get nodes` should return the cluster’s nodes successfully without `sudo`. |
 | `kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/refs/heads/master/Documentation/kube-flannel.yml` | Deploy the Flannel CNI plugin (Pod network) | Installs a Container Network Interface (CNI) to enable pod-to-pod communication across nodes. Without it, pods cannot communicate between nodes, keeping nodes in `NotReady` state. | `kubectl -n kube-system get pods -o wide` should show `flannel` pods running, and `kubectl get nodes` should show nodes as `Ready`. |
 
-###At this point, all the nodes should be in the cluster connected. 
+### At this point, all the nodes should be in the cluster connected. 
 
 Verify node readiness:
 ```bash
@@ -77,13 +77,13 @@ All tests should succeed (ping, DNS, service routing).
 ---
 
 ## 5. Infrastructure Installation
-Install essential tools.
+Install basic infra tools like metrics server, storageCLass for PVCs (Persistent Volume Claims), Ingress Controller. 
 
 | Command | Purpose | Why Necessary | Verification |
-|----------|----------|----------------|---------------|
-| `Pod_a=<pod_name> in node1`<br>`Pod_b_ip=<pod_ip> of pod in node2`<br>`kubectl exec -it $Pod_a -- ping -c3 $Pod_b_ip` | Test Pod-to-Pod cross-node connectivity | Verifies that the cluster network (CNI) correctly routes traffic between pods on different nodes. Confirms that the network overlay (e.g., Flannel, Calico) is functioning. | Ping should succeed with no packet loss, proving cross-node communication works. |
-| `POD=$(kubectl get pod -l app=netshoot -o jsonpath='{.items[0].metadata.name}')`<br>`kubectl exec -it $POD -- nslookup kubernetes.default` | Verify DNS resolution inside the cluster | Confirms that CoreDNS is operational and that pods can resolve internal service names to ClusterIPs. Without functional DNS, services cannot communicate by name. | Should resolve `kubernetes.default` to a ClusterIP, confirming DNS health. |
-| `kubectl create deploy echo --image=hashicorp/http-echo -- /http-echo -text="ok"`<br>`kubectl expose deploy echo --port=5678`<br>`kubectl exec -it $POD -- wget -qO- http://echo:5678` | Validate Service-to-Pod routing | Ensures that Kubernetes Services correctly route traffic to backend pods using cluster networking and kube-proxy. Validates internal load balancing. | Output should return `ok`, confirming service routing and pod reachability. |
+|----------|----------|---------------|---------------|
+| `kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml`<br><br>If using in labs or self-signed certificates:<br>`kubectl -n kube-system patch deployment metrics-server --type='json' -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]'` | Install **Metrics Server** | Provides usage metrics (CPU, memory, etc.) for nodes and pods in the cluster. Essential for `kubectl top` and Horizontal Pod Autoscaler. | `kubectl get pods -A` or `kubectl get deploy -A` should list **metrics-server**.<br><br>**Tip:** Alternatively, download the deployment file and add `"--kubelet-insecure-tls"` to `spec.template.spec.containers.args` manually. |
+| `kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/baremetal/deploy.yaml`<br><br>`kubectl -n ingress-nginx get pods -A` | Install **Ingress Controller** | Exposes internal cluster services to external traffic using HTTP/HTTPS routing. Critical for making apps accessible publicly or via domain names. | `kubectl get pods -A` and `kubectl get deploy -A` should show **ingress-nginx** controller and related services. |
+
 
 
 ### Reset Cluster (if needed or you mess up something, for example the external ip of the nodes changed which I tried fixing and messed up whole lot of things)
@@ -161,6 +161,7 @@ CMD ["node", "server.js"]
 ```
    
 ### 6.2 Argo CD Setup
+ArgoCD is a Continuous Delivery tool that will use GitOps repository as the single source of truth. It will routinely check the repository for changes and applies the changes as it sees. We
 Install via [official guide](https://argo-cd.readthedocs.io/en/stable/getting_started/). Convert `argocd-server` service to LoadBalancer (`kubectl –n argocd edit svc argocd-server`) and allocate some MetalLB IP range for example, `192.168.101.220–230`.
 
 **MetalLB Configuration (metallb-pool.yaml)**
@@ -196,15 +197,16 @@ manifests/
     deployment.yaml
     service.yaml
     kustomization.yaml
-  dev/
-    ingress.yaml
-    kustomization.yaml
-  stage/
-    ingress.yaml
-    kustomization.yaml
-  prod/
-    ingress.yaml
-    kustomization.yaml
+  overlays/
+     dev/
+       ingress.yaml
+       kustomization.yaml
+     stage/
+       ingress.yaml
+       kustomization.yaml
+     prod/
+       ingress.yaml
+       kustomization.yaml
 ```
 
 ### 6.3 Example Deployment (next-portfolio)
@@ -528,7 +530,7 @@ Output of the first test:
 
 After fixing the issues shown the command gave exit(0) or no output which means our test passed API Schema Validation. 
 
-####Kube Score
+#### Kube Score
 Kube-score checks for best practices /safety net checks. 
 Command: `kube-score score deployment.yaml` OR `kustomize build overlays/dev | kube-score score -`
 
@@ -556,14 +558,15 @@ Policies enforced:
 ## 7. Argo CD Apps
 Now that the pre-deploy tests have been completed, I created an ArgoCD app. I accessed the argoCD portal from its LoadBalancerIP (192.168.101.221 in our case).  I created a project named porfolio-apps first with following configurations:
 
-###TIP
-This makes ingress controller update the latest ip addresses used by the load balancer and services. 
+### TIP
+*This makes ingress controller update the latest ip addresses used by the load balancer and services in logs.*
 ```bash
 kubectl -n ingress-nginx patch deploy ingress-nginx-controller \
   --type='json' \ 
   -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--publish-service=$(POD_NAMESPACE)/ingress-nginx-controller"}]'
 ```
-SOURCE REPOSITORIES: https://github.com/nishanau/NextJSPortfolioSite.git 
+SOURCE REPOSITORIES: https://github.com/nishanau/NextJSPortfolioSite.git
+
 DESTINATIONS: I will only allow the apps in this projects to run in dev, stage and prod namespaces only for now.
 
 After setting up the project, I created an app each for each namespace; dev, stage and prod.  
@@ -1184,7 +1187,7 @@ jobs:
 I created a separate repo `nishanau/infra-gitops` to host anything related to infrastructure and in the future I will also host the manifests for other apps here. For now, I have used CLoudflared which hosts my domain name `nishdevops.org` to provide tunnelling service to the cluster making the app accessible online. 
 
 **File Structure in the repo**
-
+```
 cloudflared/
 ├── base/
 │ ├── configmap.yaml
@@ -1193,6 +1196,7 @@ cloudflared/
 │
 ├── overlays/
 │ └── prod/
+```
 
 **Note:** Currently I have injected the tunnel token manually into the cluster which is why the current `configmaps.yaml` isn't being enforced. In future, I plan to deploy secret management and after that, I will make the cloudlfared deployment use the configmap. 
 ````bash
