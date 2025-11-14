@@ -119,8 +119,6 @@ Validation is performed inside a **custom pre-deploy tools container** that incl
 
 ## 6. CI/CD Architecture
 
-![CI/CD + GitOps Architecture](./public/enterprise_cicd_k8s/cicd_flow.svg)
-
 ### Reusable CI Workflows (in `ci-cd-templates`)
 1. **ci-app.yml**  
    - Lint + test  
@@ -175,11 +173,9 @@ Runs only if all required CI steps succeed.
 
 ## 9. Architecture Diagram
 
-Place your CI/CD flow diagram here:
 
-```
-./flow-1.svg
-```
+
+![CI/CD + GitOps Architecture](./public/enterprise_cicd_k8s/cicd_flow.svg)
 
 ---
 
