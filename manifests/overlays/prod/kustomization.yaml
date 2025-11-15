@@ -3,18 +3,12 @@ namespace: prod
 resources:
   - ../../base
   - ingress.yaml
-  - hpa-patch.yaml
 
 nameSuffix: -prod
 
 images:
   - name: docker.io/nishans0/next-portfolio
     newTag: sha-4978f268ada590586aa09fb7432d9dbbe1aeebda
+
 patches:
-  - target:
-      kind: Deployment
-      name: next-portfolio
-    patch: |-
-      - op: replace
-        path: /spec/replicas
-        value: 2
+  - path: hpa-patch.yaml
