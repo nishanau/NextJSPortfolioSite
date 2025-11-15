@@ -5,3 +5,4 @@ resources:
   - pdb.yaml
   - sa.yaml
   - network_policy.yaml
+  - hpa.yaml

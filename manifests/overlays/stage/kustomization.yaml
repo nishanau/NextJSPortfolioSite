@@ -1,8 +1,9 @@
 ---
 namespace: stage
 resources:
-  - ../base
+  - ../../base
   - ingress.yaml
+  - hpa-patch.yaml
 images:
   - name: docker.io/nishans0/next-portfolio
     newTag: sha-4978f268ada590586aa09fb7432d9dbbe1aeebda

@@ -1,0 +1,14 @@
+# overlays/dev/hpa-patch.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: next-portfolio-hpa-dev
+  namespace: dev
+spec:
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 90
