@@ -3,7 +3,7 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: next-portfolio-hpa
-  namespace: prod
+
 spec:
   minReplicas: 2
   maxReplicas: 10
