@@ -2,7 +2,6 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: next-portfolio-hpa     # HPA name (should match the workload being scaled)
-  namespace: dev        # Namespace where the HPA is deployed
 spec:
   # -------------------------------------------------------------------
   # scaleTargetRef: Which Kubernetes workload should this HPA scale?
