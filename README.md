@@ -37,6 +37,13 @@ kubeadm init   --apiserver-advertise-address=<control-plane-ip>   --pod-network-
 - Service routing  
 - DNS resolution via CoreDNS  
 
+### Autoscaling
+- **Horizontal Pod Autoscaler (HPA)** enabled for automatic scaling based on CPU utilization
+- Configured to scale between 2-10 replicas (configurable per environment)
+- Target CPU utilization: 80% (base), with environment-specific thresholds via Kustomize patches
+- Stabilization windows prevent aggressive scaling oscillations
+- Requires Metrics Server for real-time resource metrics
+
 ---
 
 ## 2. Application Architecture
@@ -65,15 +72,20 @@ manifests/
     service.yaml
     pdb.yaml
     sa.yaml
+    hpa.yaml
+    network_policy.yaml
     kustomization.yaml
   dev/
     ingress.yaml
+    hpa-patch.yaml
     kustomization.yaml     # newTag = edge
   stage/
     ingress.yaml
+    hpa-patch.yaml
     kustomization.yaml     # newTag comes from dev
   prod/
     ingress.yaml
+    hpa-patch.yaml
     kustomization.yaml     # newTag comes from stage
 ```
 

@@ -61,7 +61,160 @@ kubectl get nodes
 
 ---
 
-## 4. Cluster Health and Sanity Checks
+## 4. Horizontal Pod Autoscaler (HPA) Setup
+
+### 4.1 Why HPA?
+The **Horizontal Pod Autoscaler** automatically adjusts the number of pod replicas based on observed metrics (CPU, memory, or custom metrics). This ensures:
+- **Cost efficiency**: Scale down during low traffic
+- **Performance**: Scale up during high load
+- **Availability**: Maintain service quality under varying demand
+
+### 4.2 Prerequisites
+HPA requires the **Metrics Server** to function. Install it:
+
+```bash
+# Install Metrics Server
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+# For self-signed certificates (lab environments)
+kubectl -n kube-system patch deployment metrics-server --type='json' \
+  -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]'
+
+# Verify installation
+kubectl get deployment metrics-server -n kube-system
+kubectl top nodes  # Should show CPU/Memory usage
+```
+
+### 4.3 HPA Configuration
+
+**Base HPA (`manifests/base/hpa.yaml`)**
+```yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: next-portfolio-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: next-portfolio
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80  # Scale when avg CPU > 80%
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100  # Can double pods instantly
+          periodSeconds: 15
+    scaleDown:
+      stabilizationWindowSeconds: 60  # Wait 60s before scaling down
+      policies:
+        - type: Percent
+          value: 50  # Reduce by 50% max per cycle
+          periodSeconds: 15
+```
+
+### 4.4 Environment-Specific Patches
+
+Using **Kustomize patches**, each environment can override HPA thresholds:
+
+**Dev HPA Patch (`manifests/overlays/dev/hpa-patch.yaml`)**
+```yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: next-portfolio-hpa
+spec:
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 30  # Lower threshold for dev testing
+```
+
+**Stage/Prod**: Similar patches with higher thresholds (70-80%)
+
+### 4.5 How HPA Works
+
+1. **Metrics Server** collects CPU/memory usage from kubelet every 15s
+2. **HPA Controller** queries Metrics Server every 15s (default)
+3. **Calculation**: 
+   ```
+   desiredReplicas = ceil[currentReplicas * (currentMetric / targetMetric)]
+   ```
+   Example: 2 pods @ 160% CPU → `ceil[2 * (160/80)] = 4 pods`
+4. **Stabilization**: Waits for `stabilizationWindowSeconds` before scaling down (prevents flapping)
+5. **Deployment** adjusts replica count
+
+### 4.6 Verification & Monitoring
+
+**Check HPA Status**
+```bash
+kubectl get hpa -n dev
+# NAME                   REFERENCE                     TARGETS   MINPODS   MAXPODS   REPLICAS   AGE
+# next-portfolio-hpa-dev Deployment/next-portfolio-dev 45%/30%   2         5         3          2d
+```
+
+**View Detailed HPA Events**
+```bash
+kubectl describe hpa next-portfolio-hpa-dev -n dev
+```
+
+**Monitor Real-Time Scaling**
+```bash
+watch -n 2 'kubectl get hpa -n dev && kubectl get pods -n dev'
+```
+
+### 4.7 HPA in Action
+
+Below is a snapshot showing HPA responding to load:
+
+![HPA Usage Example](./public/enterprise_cicd_k8s/hpa-usage.png)
+
+**Observations:**
+- Multiple HPA instances across `dev`, `stage`, and `prod` namespaces
+- Each environment has different scaling thresholds
+- Current CPU utilization vs. target clearly visible
+- Replica counts adjust dynamically based on load
+
+### 4.8 Best Practices
+
+✅ **DO:**
+- Set `requests` in Deployment (HPA needs this for percentage calculations)
+- Use `behavior` field to control scaling speed
+- Test with load testing tools (e.g., `kubectl run -it --rm load-generator --image=busybox -- /bin/sh -c "while true; do wget -q -O- http://next-portfolio-service; done"`)
+- Monitor for "flapping" (rapid scale up/down cycles)
+
+❌ **DON'T:**
+- Set `minReplicas` too low (breaks high availability)
+- Set `maxReplicas` beyond node capacity
+- Use HPA without resource requests
+- Scale on memory alone (often leads to OOM kills)
+
+### 4.9 Troubleshooting
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| HPA shows `<unknown>/80%` | Metrics Server not installed | Install Metrics Server |
+| Pods not scaling | No resource requests in Deployment | Add `resources.requests.cpu` |
+| Rapid scaling oscillations | No stabilization window | Add `behavior.scaleDown.stabilizationWindowSeconds` |
+| HPA not matching pods | `nameSuffix` applied | Use `name: next-portfolio-hpa` in patch (suffix auto-added) |
+
+---
+
+## 5. Cluster Health and Sanity Checks
 Test inter-pod connectivity and DNS resolution.
 
 
@@ -76,7 +229,7 @@ All tests should succeed (ping, DNS, service routing).
 
 ---
 
-## 5. Infrastructure Installation
+## 6. Infrastructure Installation
 Install basic infra tools like metrics server, storageCLass for PVCs (Persistent Volume Claims), Ingress Controller. 
 
 | Command | Purpose | Why Necessary | Verification |
@@ -97,7 +250,7 @@ sudo ip link delete flannel.1
 
 ---
 
-## 6. Containerizing the Apps
+## 7. Containerizing the Apps
 
 ### 6.1 Writing Dockerfiles
 
@@ -159,8 +312,8 @@ EXPOSE 3000
 CMD ["node", "server.js"]
 
 ```
-   
-### 6.2 Argo CD Setup
+
+### 6.3 Example Deployment (next-portfolio)
 ArgoCD is a Continuous Delivery tool that will use GitOps repository as the single source of truth. It will routinely check the repository for changes and applies the changes as it sees. We
 Install via [official guide](https://argo-cd.readthedocs.io/en/stable/getting_started/). Convert `argocd-server` service to LoadBalancer (`kubectl –n argocd edit svc argocd-server`) and allocate some MetalLB IP range for example, `192.168.101.220–230`.
 
@@ -555,7 +708,7 @@ Policies enforced:
 ---
 
 
-## 7. Argo CD Apps
+## 8. Argo CD Apps
 Now that the pre-deploy tests have been completed, I created an ArgoCD app. I accessed the argoCD portal from its LoadBalancerIP (192.168.101.221 in our case).  I created a project named porfolio-apps first with following configurations:
 
 ### TIP
@@ -602,7 +755,7 @@ syncPolicy:
 
 ---
 
-## 8. GitHub Actions (CI)
+## 8. GitHub Actions (CI/CD)
 Initially combined, later split into:
 - **CI:** Lint, validate, build, and push Docker image.
 - **CD:** Sync updated image tag via ArgoCD.

@@ -32,6 +32,7 @@ const projectsData = {
       { id: "cicd-layer", title: "CI/CD Layer", level: 3 },
       { id: "security-layer", title: "Security Layer", level: 3 },
       { id: "deployment-strategy", title: "Deployment Strategy", level: 3 },
+      { id: "autoscaling-hpa", title: "Autoscaling with HPA", level: 3 },
       { id: "complete-cicd-flow", title: "Complete CI/CD Flow", level: 2 },
       { id: "ci-workflow-details", title: "CI Workflow Details", level: 2 },
       { id: "intelligent-ci-pipeline", title: "Intelligent CI Pipeline Orchestration", level: 3 },
@@ -74,6 +75,7 @@ const projectsData = {
           <li>3-node bare-metal Kubernetes cluster (1 control plane, 2 workers)</li>
           <li>GitOps workflow with ArgoCD for declarative continuous delivery</li>
           <li>Multi-environment architecture (dev, staging, production)</li>
+          <li>Horizontal Pod Autoscaler (HPA) with environment-specific scaling policies</li>
           <li>Reusable GitHub Actions CI workflow templates</li>
           <li>Comprehensive security policies and enforcement</li>
           <li>Cloudflare Tunnel integration for secure public access</li>
@@ -88,6 +90,7 @@ const projectsData = {
           <li><strong>Load Balancer:</strong> MetalLB for external IP allocation</li>
           <li><strong>Ingress Controller:</strong> Nginx for traffic routing</li>
           <li><strong>Container Runtime:</strong> Containerd with systemd cgroup driver</li>
+          <li><strong>Metrics Server:</strong> Real-time resource metrics collection for autoscaling</li>
           <li><strong>Cloudflared:</strong> Cloudflare Tunnel integration for secure public access</li>
         </ul>
 
@@ -114,6 +117,21 @@ const projectsData = {
           <li><strong>Public Access:</strong> Cloudflare Tunnel (cloudflared sidecar)</li>
           <li><strong>Zero Downtime:</strong> Rolling updates with pod disruption budgets</li>
         </ul>
+
+        <h3 id="autoscaling-hpa">Autoscaling with HPA</h3>
+        <p>
+          Implemented <strong>Horizontal Pod Autoscaler (HPA)</strong> to automatically scale application replicas based on real-time CPU utilization, ensuring optimal resource usage and performance across all environments.
+        </p>
+        <ul>
+          <li><strong>Dynamic Scaling:</strong> Automatically adjusts replica count (2-5 pods) based on CPU load</li>
+          <li><strong>Environment-Specific Thresholds:</strong> Dev (30%), Stage (70%), Prod (80%) using Kustomize patches</li>
+          <li><strong>Stabilization Windows:</strong> Prevents scaling oscillations with 60-second cooldown for scale-down</li>
+          <li><strong>Aggressive Scale-Up:</strong> Can double capacity instantly during traffic spikes</li>
+          <li><strong>Metrics Integration:</strong> Leverages Metrics Server for real-time resource monitoring</li>
+        </ul>
+        <p>
+          This setup demonstrates understanding of production-grade autoscaling patterns, cost optimization through intelligent scaling policies, and environment-appropriate configuration management.
+        </p>
 
         <h2 id="complete-cicd-flow">Complete CI/CD Flow</h2>
         <div className={styles.imageContainer}>

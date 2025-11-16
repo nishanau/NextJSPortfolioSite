@@ -6,7 +6,6 @@ metadata:
   labels:
     app: next-portfolio
 spec:
-  replicas: 2  # 2 replicas for high availability
   revisionHistoryLimit: 5  # keep last 5 revisions for rollback
   # pod must be ready for at least 10 seconds before being considered
   # available
