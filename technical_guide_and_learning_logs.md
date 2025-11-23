@@ -1335,28 +1335,355 @@ jobs:
 ## Final CI/CD (End-to-End Flow)
 ![CI/CD + GitOps Architecture](./public/enterprise_cicd_k8s/cicd_flow.svg)
 
-## 9. Exposing the app to the Internet (Cloudflared)
+## 9. Secrets Management with Doppler + External Secrets Operator
 
-I created a separate repo `nishanau/infra-gitops` to host anything related to infrastructure and in the future I will also host the manifests for other apps here. For now, I have used CLoudflared which hosts my domain name `nishdevops.org` to provide tunnelling service to the cluster making the app accessible online. 
+### 9.1 Why Doppler + ESO?
 
-**File Structure in the repo**
+I use **Doppler** (cloud secret manager) + **External Secrets Operator (ESO)** to securely manage Kubernetes secrets while preserving GitOps principles. This approach separates secret storage from deployment configuration.
+
+**Previous Approach (Manual Secret Injection):**
+- ❌ Secrets manually created with `kubectl`
+- ❌ Not reproducible or auditable
+- ❌ No GitOps compliance
+- ❌ Difficult to rotate or update
+
+**Doppler + ESO Benefits:**
+- ✅ Secrets never stored in Git (not even encrypted)
+- ✅ ArgoCD never sees secret values
+- ✅ Centralized secret management with audit logs
+- ✅ Easy rotation without code changes
+- ✅ Separation of concerns: deployment vs. secrets access
+- ✅ Follows ArgoCD best practices
+
+---
+
+### 9.2 How It Works
+
+**Architecture Flow:**
+```
+1. Secrets stored in Doppler (cloud)
+   ↓
+2. ESO authenticates with Doppler using bootstrap token
+   ↓
+3. ESO watches ExternalSecret resources
+   ↓
+4. ESO fetches secret values from Doppler
+   ↓
+5. ESO creates Kubernetes Secrets in target namespace
+   ↓
+6. Application pods consume secrets (standard K8s pattern)
+```
+
+**Key Components:**
+
+**CRDs (Custom Resource Definitions):**
+- Extend Kubernetes to understand new resource types
+- `ExternalSecret` and `SecretStore` are custom resources
+- Schema definitions only—don't perform any actions
+- Never should be pruned (would delete all resources of that type)
+
+**ESO Operator (Controller):**
+- Actual application Pod that acts on custom resources
+- Connects to Doppler, fetches secrets, creates K8s Secrets
+- Runs continuously in `external-secrets` namespace
+- Can be safely upgraded/redeployed
+
+**SecretStore:**
+- Connection configuration for secret backend (Doppler)
+- Defines authentication method and project/environment
+- Namespace-scoped for security isolation
+
+**ExternalSecret:**
+- Declares what secret to fetch and where to put it
+- Maps Doppler secret keys to Kubernetes secret keys
+- Refreshes periodically (every 15 minutes) to stay in sync
+
+---
+
+### 9.3 Setup Process
+
+#### **Step 1: Doppler Account Setup**
+
+1. Created account at https://doppler.com (free tier)
+2. Created project: `baremetal-k8s-project`
+3. Selected environment: `prd` (production)
+4. Added secret:
+   - Name: `CLOUDFLARED_TUNNEL_TOKEN`
+   - Value: Actual tunnel token from Cloudflare
+5. Generated service token:
+   - Name: `kubernetes-prod`
+   - Environment: `prd`
+   - Access: `Read` (least privilege)
+   - Token format: `dp.st.prd.xxx...`
+
+#### **Step 2: External Secrets Operator Installation**
+
+**Created separate infra repository:** `nishanau/infra-gitops`
+
+**File structure:**
+```
+infra-gitops/
+├── argocd/
+│   └── overlays/prod/
+│       ├── infra-project.yaml         # AppProject for infrastructure apps
+│       ├── external-secrets-app.yaml  # ESO CRDs + Operator
+│       ├── cloudflared-app.yaml       # Cloudflared app
+│       └── kustomization.yaml
+│
+├── external-secrets-operator/
+│   └── base/
+│       ├── namespace.yaml
+│       └── kustomization.yaml         # Includes CRDs bundle
+│
+└── cloudflared/
+    ├── base/
+    │   ├── deployment.yaml
+    │   ├── secret-store.yaml          # Doppler connection
+    │   ├── external-secret.yaml       # Secret definition
+    │   └── kustomization.yaml
+    └── overlays/prod/
+```
+
+**Why separate repository?**
+- Infrastructure code separated from application code
+- Reusable across multiple applications
+- Better access control (infra team vs. dev team)
+
+#### **Step 3: ArgoCD Infrastructure Project**
+
+**infra-gitops/argocd/overlays/prod/infra-project.yaml:**
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: infra
+  namespace: argocd
+spec:
+  description: Infrastructure applications
+  sourceRepos:
+    - 'https://github.com/nishanau/infra-gitops.git'
+    - 'https://charts.external-secrets.io'  # Helm chart repo
+    - '*'
+  destinations:
+    - namespace: '*'
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+```
+
+**Purpose:**
+- Groups infrastructure apps under one project
+- Allows Helm chart repositories (needed for ESO)
+- Better organization than using `default` project
+
+#### **Step 4: ESO CRDs and Operator Apps**
+
+**infra-gitops/argocd/overlays/prod/external-secrets-app.yaml:**
+```yaml
+---
+# App 1: CRDs (never pruned)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: external-secrets-crds
+  namespace: argocd
+spec:
+  project: infra
+  source:
+    repoURL: https://github.com/nishanau/infra-gitops
+    targetRevision: HEAD
+    path: external-secrets-operator/base
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: external-secrets
+  syncPolicy:
+    automated:
+      prune: false  # ✅ Never delete CRDs!
+      selfHeal: true
+
+---
+# App 2: Operator (can be pruned)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: external-secrets-operator
+  namespace: argocd
+spec:
+  project: infra
+  source:
+    repoURL: https://charts.external-secrets.io
+    chart: external-secrets
+    targetRevision: 0.9.11
+    helm:
+      releaseName: external-secrets
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: external-secrets
+  syncPolicy:
+    automated:
+      prune: true  # ✅ Safe to prune operator
+      selfHeal: true
+```
+
+**Why two separate Applications?**
+- **CRDs**: Protected from deletion (`prune: false`)
+- **Operator**: Can be safely upgraded/redeployed
+- Separation follows Kubernetes operator best practices
+
+#### **Step 5: Cloudflared SecretStore**
+
+**infra-gitops/cloudflared/base/secret-store.yaml:**
+```yaml
+apiVersion: external-secrets.io/v1beta1
+kind: SecretStore
+metadata:
+  name: doppler-secret-store
+  namespace: cloudflared
+spec:
+  provider:
+    doppler:
+      project: baremetal-k8s-project  # Doppler project
+      config: prd                      # Environment
+      auth:
+        secretRef:
+          dopplerToken:
+            name: doppler-token-auth   # Bootstrap secret
+            key: dopplerToken
+```
+
+**Purpose:**
+- Defines HOW to connect to Doppler
+- References bootstrap token (created manually)
+- Namespace-scoped for security isolation
+
+#### **Step 6: Cloudflared ExternalSecret**
+
+**infra-gitops/cloudflared/base/external-secret.yaml:**
+```yaml
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: cloudflared-credentials
+  namespace: cloudflared
+spec:
+  refreshInterval: 15m  # Sync every 15 minutes
+  
+  secretStoreRef:
+    name: doppler-secret-store
+    kind: SecretStore
+  
+  target:
+    name: cloudflared-credentials
+    creationPolicy: Owner  # ESO manages lifecycle
+    template:
+      type: Opaque
+  
+  data:
+    - secretKey: tunnel-token       # K8s secret key
+      remoteRef:
+        key: CLOUDFLARED_TUNNEL_TOKEN  # Doppler key
+```
+
+**Purpose:**
+- Declares WHAT secret to fetch
+- Maps Doppler keys to Kubernetes keys
+- ESO creates and manages the actual Secret
+
+#### **Step 7: Bootstrap Token (Manual Step)**
+
+```bash
+# One-time manual secret creation
+kubectl create secret generic doppler-token-auth \
+  --from-literal=dopplerToken="dp.st.prd.xxx..." \
+  -n cloudflared
+```
+
+**Why manual?**
+- Bootstrap problem: ESO needs this to authenticate
+- Not stored in Git (security)
+- Created once during initial setup
+
+---
+
+### 9.4 Deployment Flow
+
+**Order of operations:**
+```
+1. Apply ArgoCD infra project
+   ↓
+2. Deploy ESO CRDs (must be first)
+   ↓
+3. Deploy ESO Operator (needs CRDs)
+   ↓
+4. Create bootstrap token (kubectl)
+   ↓
+5. Deploy cloudflared app
+   ↓
+6. ESO fetches secret from Doppler
+   ↓
+7. ESO creates cloudflared-credentials Secret
+   ↓
+8. Cloudflared pods start with secret
+```
+
+**Verification:**
+```bash
+# Check ESO is running
+kubectl get pods -n external-secrets
+
+# Check SecretStore is valid
+kubectl get secretstore -n cloudflared
+# Output: doppler-secret-store   Valid   XX
+
+# Check ExternalSecret synced
+kubectl get externalsecret -n cloudflared
+# Output: cloudflared-credentials   SecretSynced   XX
+
+# Verify secret was created
+kubectl get secret cloudflared-credentials -n cloudflared
+
+# Check cloudflared pod
+kubectl get pods -n cloudflared
+```
+
+---
+
+### 9.5 Security Benefits
+
+| Aspect | Traditional Approach | Doppler + ESO |
+|--------|---------------------|---------------|
+| **Secret Storage** | In Git (encrypted) | In Doppler (cloud) |
+| **ArgoCD Access** | Sees encrypted values | Never sees secrets |
+| **Rotation** | Update Git, rebuild | Update Doppler, auto-syncs |
+| **Audit Trail** | Git commits only | Doppler logs all access |
+| **Access Control** | Git permissions | Separate secret management |
+| **Blast Radius** | Git compromise = all secrets | Token compromise = limited scope |
+
+**Key Principles:**
+- ✅ Secrets never in Git (not even encrypted)
+- ✅ Principle of least privilege (read-only service token)
+- ✅ Separation of concerns (deployment vs. secrets)
+- ✅ Audit trail (who accessed what, when)
+- ✅ Easy rotation (change in Doppler, auto-syncs)
+
+---
+
+## 10. Cloudflared Tunnel Configuration
+
+I use **Cloudflare Tunnel** to securely expose cluster services to the internet without opening firewall ports. The tunnel establishes an outbound-only connection to Cloudflare's edge network.
+
+**File Structure:**
 ```
 cloudflared/
 ├── base/
-│ ├── configmap.yaml
-│ ├── deployment.yaml
-│ ├── kustomization.yaml
-│
-├── overlays/
-│ └── prod/
+│   ├── deployment.yaml
+│   ├── secret-store.yaml
+│   ├── external-secret.yaml
+│   └── kustomization.yaml
+└── overlays/
+    └── prod/
 ```
-
-**Note:** Currently I have injected the tunnel token manually into the cluster which is why the current `configmaps.yaml` isn't being enforced. In future, I plan to deploy secret management and after that, I will make the cloudlfared deployment use the configmap. 
-````bash
-kubectl create secret generic cloudflared-tunnel-token \
-  --from-literal=TUNNEL_TOKEN='YOUR_TOKEN_HERE' \
-  -n cloudflared
-````
 
 ### infra-gitops/cloudflared/base/deployment.yaml
 ````yaml
@@ -1507,26 +1834,56 @@ data:
     ingress:
       - hostname: portfolio.nishdevops.org
         service: http://ingress-nginx-controller.ingress-nginx.svc.cluster.local:80
-      - hostname: portgolio-stage.nishdevops.org
+      - hostname: portfolio-stage.nishdevops.org
         service: http://ingress-nginx-controller.ingress-nginx.svc.cluster.local:80
 
       # Fallback route — returns 404 for unknown hostnames
       - service: http_status:404
 ````
-### infra-gitops/cloudflared/base/kustomization.yaml
 
+### infra-gitops/cloudflared/base/secret-store.yaml
 ````yaml
-resources:
-  - configmap.yaml
-  - deployment.yaml
+apiVersion: external-secrets.io/v1beta1
+kind: SecretStore
+metadata:
+  name: doppler-secret-store
+  namespace: cloudflared
+spec:
+  provider:
+    doppler:
+      project: baremetal-k8s-project
+      config: prd
+      auth:
+        secretRef:
+          dopplerToken:
+            name: doppler-token-auth
+            key: dopplerToken
+
 ````
 
----
+### infra-gitops/cloudflared/base/external-secret.yaml
+````yaml
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: cloudflared-credentials
+  namespace: cloudflared
+spec:
+  refreshInterval: 15m
+  secretStoreRef:
+    name: doppler-secret-store
+    kind: SecretStore
+  target:
+    name: cloudflared-credentials
+    creationPolicy: Owner
+    template:
+      type: Opaque
+  data:
+    - secretKey: tunnel-token
+      remoteRef:
+        key: CLOUDFLARED_TUNNEL_TOKEN
+````
 
-### Final Notes
-- Add version pinning and RBAC in future iterations.
-- Implement centralized monitoring and alerting.
-- Include full CI workflow YAML for completeness.
 
 ---
 

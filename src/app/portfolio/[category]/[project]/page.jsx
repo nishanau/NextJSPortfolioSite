@@ -592,7 +592,7 @@ kustomize build overlays/dev | kube-score score -`}</code>
             </div>
           </a>
           <a 
-            href="https://github.com/nishanau/NextJSPortfolioSite/blob/prod/technical_guide_and_learning_logs.md" 
+            href="https://github.com/nishanau/infra-gitops/blob/main/technical_guide_and_learning_logs.md" 
             target="_blank" 
             rel="noopener noreferrer"
             className={styles.projectLink}
@@ -611,8 +611,20 @@ kustomize build overlays/dev | kube-score score -`}</code>
           >
             <span className={styles.linkIcon}>💻</span>
             <div className={styles.linkContent}>
-              <span className={styles.linkLabel}>Source Code</span>
-              <span className={styles.linkUrl}>GitHub Repository</span>
+              <span className={styles.linkLabel}>App Repository</span>
+              <span className={styles.linkUrl}>NextJS Portfolio + Manifests</span>
+            </div>
+          </a>
+          <a 
+            href="https://github.com/nishanau/infra-gitops" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className={styles.projectLink}
+          >
+            <span className={styles.linkIcon}>🔧</span>
+            <div className={styles.linkContent}>
+              <span className={styles.linkLabel}>GitOps Repository</span>
+              <span className={styles.linkUrl}>Infrastructure as Code</span>
             </div>
           </a>
         </div>
