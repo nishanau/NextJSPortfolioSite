@@ -43,7 +43,7 @@ Install `kubelet`, `kubeadm`, and `kubectl`. These form the core of Kubernetes.
 ## 3. Control Plane Initialization
 Initialize control-plane and configure networking.
 
-**Reflection:** Similar to promoting a domain controller — defines the cluster brain.
+**Reflection:** Similar to promoting a domain controller, defines the cluster brain.
 
 | Command | Purpose | Why Necessary | Verification |
 |----------|----------|----------------|---------------|
@@ -52,7 +52,7 @@ Initialize control-plane and configure networking.
 | `mkdir -p $HOME/.kube`<br>`sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config`<br>`sudo chown $(id -u):$(id -g) $HOME/.kube/config` | Configure `kubectl` for the current user | Copies the admin kubeconfig to the user’s home directory and adjusts ownership so `kubectl` commands can be executed without `sudo`. Without this, you’d need elevated privileges for every command. | `kubectl get nodes` should return the cluster’s nodes successfully without `sudo`. |
 | `kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/refs/heads/master/Documentation/kube-flannel.yml` | Deploy the Flannel CNI plugin (Pod network) | Installs a Container Network Interface (CNI) to enable pod-to-pod communication across nodes. Without it, pods cannot communicate between nodes, keeping nodes in `NotReady` state. | `kubectl -n kube-system get pods -o wide` should show `flannel` pods running, and `kubectl get nodes` should show nodes as `Ready`. |
 
-###At this point, all the nodes should be in the cluster connected. 
+### At this point, all the nodes should be in the cluster connected. 
 
 Verify node readiness:
 ```bash
@@ -61,7 +61,160 @@ kubectl get nodes
 
 ---
 
-## 4. Cluster Health and Sanity Checks
+## 4. Horizontal Pod Autoscaler (HPA) Setup
+
+### 4.1 Why HPA?
+The **Horizontal Pod Autoscaler** automatically adjusts the number of pod replicas based on observed metrics (CPU, memory, or custom metrics). This ensures:
+- **Cost efficiency**: Scale down during low traffic
+- **Performance**: Scale up during high load
+- **Availability**: Maintain service quality under varying demand
+
+### 4.2 Prerequisites
+HPA requires the **Metrics Server** to function. Install it:
+
+```bash
+# Install Metrics Server
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+# For self-signed certificates (lab environments)
+kubectl -n kube-system patch deployment metrics-server --type='json' \
+  -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]'
+
+# Verify installation
+kubectl get deployment metrics-server -n kube-system
+kubectl top nodes  # Should show CPU/Memory usage
+```
+
+### 4.3 HPA Configuration
+
+**Base HPA (`manifests/base/hpa.yaml`)**
+```yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: next-portfolio-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: next-portfolio
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80  # Scale when avg CPU > 80%
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100  # Can double pods instantly
+          periodSeconds: 15
+    scaleDown:
+      stabilizationWindowSeconds: 60  # Wait 60s before scaling down
+      policies:
+        - type: Percent
+          value: 50  # Reduce by 50% max per cycle
+          periodSeconds: 15
+```
+
+### 4.4 Environment-Specific Patches
+
+Using **Kustomize patches**, each environment can override HPA thresholds:
+
+**Dev HPA Patch (`manifests/overlays/dev/hpa-patch.yaml`)**
+```yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: next-portfolio-hpa
+spec:
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 30  # Lower threshold for dev testing
+```
+
+**Stage/Prod**: Similar patches with higher thresholds (70-80%)
+
+### 4.5 How HPA Works
+
+1. **Metrics Server** collects CPU/memory usage from kubelet every 15s
+2. **HPA Controller** queries Metrics Server every 15s (default)
+3. **Calculation**: 
+   ```
+   desiredReplicas = ceil[currentReplicas * (currentMetric / targetMetric)]
+   ```
+   Example: 2 pods @ 160% CPU → `ceil[2 * (160/80)] = 4 pods`
+4. **Stabilization**: Waits for `stabilizationWindowSeconds` before scaling down (prevents flapping)
+5. **Deployment** adjusts replica count
+
+### 4.6 Verification & Monitoring
+
+**Check HPA Status**
+```bash
+kubectl get hpa -n dev
+# NAME                   REFERENCE                     TARGETS   MINPODS   MAXPODS   REPLICAS   AGE
+# next-portfolio-hpa-dev Deployment/next-portfolio-dev 45%/30%   2         5         3          2d
+```
+
+**View Detailed HPA Events**
+```bash
+kubectl describe hpa next-portfolio-hpa-dev -n dev
+```
+
+**Monitor Real-Time Scaling**
+```bash
+watch -n 2 'kubectl get hpa -n dev && kubectl get pods -n dev'
+```
+
+### 4.7 HPA in Action
+
+Below is a snapshot showing HPA responding to load:
+
+![HPA Usage Example](./public/enterprise_cicd_k8s/hpa-usage.png)
+
+**Observations:**
+- Multiple HPA instances across `dev`, `stage`, and `prod` namespaces
+- Each environment has different scaling thresholds
+- Current CPU utilization vs. target clearly visible
+- Replica counts adjust dynamically based on load
+
+### 4.8 Best Practices
+
+✅ **DO:**
+- Set `requests` in Deployment (HPA needs this for percentage calculations)
+- Use `behavior` field to control scaling speed
+- Test with load testing tools (e.g., `kubectl run -it --rm load-generator --image=busybox -- /bin/sh -c "while true; do wget -q -O- http://next-portfolio-service; done"`)
+- Monitor for "flapping" (rapid scale up/down cycles)
+
+❌ **DON'T:**
+- Set `minReplicas` too low (breaks high availability)
+- Set `maxReplicas` beyond node capacity
+- Use HPA without resource requests
+- Scale on memory alone (often leads to OOM kills)
+
+### 4.9 Troubleshooting
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| HPA shows `<unknown>/80%` | Metrics Server not installed | Install Metrics Server |
+| Pods not scaling | No resource requests in Deployment | Add `resources.requests.cpu` |
+| Rapid scaling oscillations | No stabilization window | Add `behavior.scaleDown.stabilizationWindowSeconds` |
+| HPA not matching pods | `nameSuffix` applied | Use `name: next-portfolio-hpa` in patch (suffix auto-added) |
+
+---
+
+## 5. Cluster Health and Sanity Checks
 Test inter-pod connectivity and DNS resolution.
 
 
@@ -76,14 +229,14 @@ All tests should succeed (ping, DNS, service routing).
 
 ---
 
-## 5. Infrastructure Installation
-Install essential tools.
+## 6. Infrastructure Installation
+Install basic infra tools like metrics server, storageCLass for PVCs (Persistent Volume Claims), Ingress Controller. 
 
 | Command | Purpose | Why Necessary | Verification |
-|----------|----------|----------------|---------------|
-| `Pod_a=<pod_name> in node1`<br>`Pod_b_ip=<pod_ip> of pod in node2`<br>`kubectl exec -it $Pod_a -- ping -c3 $Pod_b_ip` | Test Pod-to-Pod cross-node connectivity | Verifies that the cluster network (CNI) correctly routes traffic between pods on different nodes. Confirms that the network overlay (e.g., Flannel, Calico) is functioning. | Ping should succeed with no packet loss, proving cross-node communication works. |
-| `POD=$(kubectl get pod -l app=netshoot -o jsonpath='{.items[0].metadata.name}')`<br>`kubectl exec -it $POD -- nslookup kubernetes.default` | Verify DNS resolution inside the cluster | Confirms that CoreDNS is operational and that pods can resolve internal service names to ClusterIPs. Without functional DNS, services cannot communicate by name. | Should resolve `kubernetes.default` to a ClusterIP, confirming DNS health. |
-| `kubectl create deploy echo --image=hashicorp/http-echo -- /http-echo -text="ok"`<br>`kubectl expose deploy echo --port=5678`<br>`kubectl exec -it $POD -- wget -qO- http://echo:5678` | Validate Service-to-Pod routing | Ensures that Kubernetes Services correctly route traffic to backend pods using cluster networking and kube-proxy. Validates internal load balancing. | Output should return `ok`, confirming service routing and pod reachability. |
+|----------|----------|---------------|---------------|
+| `kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml`<br><br>If using in labs or self-signed certificates:<br>`kubectl -n kube-system patch deployment metrics-server --type='json' -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]'` | Install **Metrics Server** | Provides usage metrics (CPU, memory, etc.) for nodes and pods in the cluster. Essential for `kubectl top` and Horizontal Pod Autoscaler. | `kubectl get pods -A` or `kubectl get deploy -A` should list **metrics-server**.<br><br>**Tip:** Alternatively, download the deployment file and add `"--kubelet-insecure-tls"` to `spec.template.spec.containers.args` manually. |
+| `kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/baremetal/deploy.yaml`<br><br>`kubectl -n ingress-nginx get pods -A` | Install **Ingress Controller** | Exposes internal cluster services to external traffic using HTTP/HTTPS routing. Critical for making apps accessible publicly or via domain names. | `kubectl get pods -A` and `kubectl get deploy -A` should show **ingress-nginx** controller and related services. |
+
 
 
 ### Reset Cluster (if needed or you mess up something, for example the external ip of the nodes changed which I tried fixing and messed up whole lot of things)
@@ -97,7 +250,7 @@ sudo ip link delete flannel.1
 
 ---
 
-## 6. Containerizing the Apps
+## 7. Containerizing the Apps
 
 ### 6.1 Writing Dockerfiles
 
@@ -159,8 +312,9 @@ EXPOSE 3000
 CMD ["node", "server.js"]
 
 ```
-   
-### 6.2 Argo CD Setup
+
+### 6.3 Example Deployment (next-portfolio)
+ArgoCD is a Continuous Delivery tool that will use GitOps repository as the single source of truth. It will routinely check the repository for changes and applies the changes as it sees. We
 Install via [official guide](https://argo-cd.readthedocs.io/en/stable/getting_started/). Convert `argocd-server` service to LoadBalancer (`kubectl –n argocd edit svc argocd-server`) and allocate some MetalLB IP range for example, `192.168.101.220–230`.
 
 **MetalLB Configuration (metallb-pool.yaml)**
@@ -196,15 +350,16 @@ manifests/
     deployment.yaml
     service.yaml
     kustomization.yaml
-  dev/
-    ingress.yaml
-    kustomization.yaml
-  stage/
-    ingress.yaml
-    kustomization.yaml
-  prod/
-    ingress.yaml
-    kustomization.yaml
+  overlays/
+     dev/
+       ingress.yaml
+       kustomization.yaml
+     stage/
+       ingress.yaml
+       kustomization.yaml
+     prod/
+       ingress.yaml
+       kustomization.yaml
 ```
 
 ### 6.3 Example Deployment (next-portfolio)
@@ -528,7 +683,7 @@ Output of the first test:
 
 After fixing the issues shown the command gave exit(0) or no output which means our test passed API Schema Validation. 
 
-####Kube Score
+#### Kube Score
 Kube-score checks for best practices /safety net checks. 
 Command: `kube-score score deployment.yaml` OR `kustomize build overlays/dev | kube-score score -`
 
@@ -553,17 +708,18 @@ Policies enforced:
 ---
 
 
-## 7. Argo CD Apps
+## 8. Argo CD Apps
 Now that the pre-deploy tests have been completed, I created an ArgoCD app. I accessed the argoCD portal from its LoadBalancerIP (192.168.101.221 in our case).  I created a project named porfolio-apps first with following configurations:
 
-###TIP
-This makes ingress controller update the latest ip addresses used by the load balancer and services. 
+### TIP
+*This makes ingress controller update the latest ip addresses used by the load balancer and services in logs.*
 ```bash
 kubectl -n ingress-nginx patch deploy ingress-nginx-controller \
   --type='json' \ 
   -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--publish-service=$(POD_NAMESPACE)/ingress-nginx-controller"}]'
 ```
-SOURCE REPOSITORIES: https://github.com/nishanau/NextJSPortfolioSite.git 
+SOURCE REPOSITORIES: https://github.com/nishanau/NextJSPortfolioSite.git
+
 DESTINATIONS: I will only allow the apps in this projects to run in dev, stage and prod namespaces only for now.
 
 After setting up the project, I created an app each for each namespace; dev, stage and prod.  
@@ -599,7 +755,7 @@ syncPolicy:
 
 ---
 
-## 8. GitHub Actions (CI)
+## 8. GitHub Actions (CI/CD)
 Initially combined, later split into:
 - **CI:** Lint, validate, build, and push Docker image.
 - **CD:** Sync updated image tag via ArgoCD.
@@ -1179,27 +1335,355 @@ jobs:
 ## Final CI/CD (End-to-End Flow)
 ![CI/CD + GitOps Architecture](./public/enterprise_cicd_k8s/cicd_flow.svg)
 
-## 9. Exposing the app to the Internet (Cloudflared)
+## 9. Secrets Management with Doppler + External Secrets Operator
 
-I created a separate repo `nishanau/infra-gitops` to host anything related to infrastructure and in the future I will also host the manifests for other apps here. For now, I have used CLoudflared which hosts my domain name `nishdevops.org` to provide tunnelling service to the cluster making the app accessible online. 
+### 9.1 Why Doppler + ESO?
 
-**File Structure in the repo**
+I use **Doppler** (cloud secret manager) + **External Secrets Operator (ESO)** to securely manage Kubernetes secrets while preserving GitOps principles. This approach separates secret storage from deployment configuration.
 
+**Previous Approach (Manual Secret Injection):**
+- ❌ Secrets manually created with `kubectl`
+- ❌ Not reproducible or auditable
+- ❌ No GitOps compliance
+- ❌ Difficult to rotate or update
+
+**Doppler + ESO Benefits:**
+- ✅ Secrets never stored in Git (not even encrypted)
+- ✅ ArgoCD never sees secret values
+- ✅ Centralized secret management with audit logs
+- ✅ Easy rotation without code changes
+- ✅ Separation of concerns: deployment vs. secrets access
+- ✅ Follows ArgoCD best practices
+
+---
+
+### 9.2 How It Works
+
+**Architecture Flow:**
+```
+1. Secrets stored in Doppler (cloud)
+   ↓
+2. ESO authenticates with Doppler using bootstrap token
+   ↓
+3. ESO watches ExternalSecret resources
+   ↓
+4. ESO fetches secret values from Doppler
+   ↓
+5. ESO creates Kubernetes Secrets in target namespace
+   ↓
+6. Application pods consume secrets (standard K8s pattern)
+```
+
+**Key Components:**
+
+**CRDs (Custom Resource Definitions):**
+- Extend Kubernetes to understand new resource types
+- `ExternalSecret` and `SecretStore` are custom resources
+- Schema definitions only—don't perform any actions
+- Never should be pruned (would delete all resources of that type)
+
+**ESO Operator (Controller):**
+- Actual application Pod that acts on custom resources
+- Connects to Doppler, fetches secrets, creates K8s Secrets
+- Runs continuously in `external-secrets` namespace
+- Can be safely upgraded/redeployed
+
+**SecretStore:**
+- Connection configuration for secret backend (Doppler)
+- Defines authentication method and project/environment
+- Namespace-scoped for security isolation
+
+**ExternalSecret:**
+- Declares what secret to fetch and where to put it
+- Maps Doppler secret keys to Kubernetes secret keys
+- Refreshes periodically (every 15 minutes) to stay in sync
+
+---
+
+### 9.3 Setup Process
+
+#### **Step 1: Doppler Account Setup**
+
+1. Created account at https://doppler.com (free tier)
+2. Created project: `baremetal-k8s-project`
+3. Selected environment: `prd` (production)
+4. Added secret:
+   - Name: `CLOUDFLARED_TUNNEL_TOKEN`
+   - Value: Actual tunnel token from Cloudflare
+5. Generated service token:
+   - Name: `kubernetes-prod`
+   - Environment: `prd`
+   - Access: `Read` (least privilege)
+   - Token format: `dp.st.prd.xxx...`
+
+#### **Step 2: External Secrets Operator Installation**
+
+**Created separate infra repository:** `nishanau/infra-gitops`
+
+**File structure:**
+```
+infra-gitops/
+├── argocd/
+│   └── overlays/prod/
+│       ├── infra-project.yaml         # AppProject for infrastructure apps
+│       ├── external-secrets-app.yaml  # ESO CRDs + Operator
+│       ├── cloudflared-app.yaml       # Cloudflared app
+│       └── kustomization.yaml
+│
+├── external-secrets-operator/
+│   └── base/
+│       ├── namespace.yaml
+│       └── kustomization.yaml         # Includes CRDs bundle
+│
+└── cloudflared/
+    ├── base/
+    │   ├── deployment.yaml
+    │   ├── secret-store.yaml          # Doppler connection
+    │   ├── external-secret.yaml       # Secret definition
+    │   └── kustomization.yaml
+    └── overlays/prod/
+```
+
+**Why separate repository?**
+- Infrastructure code separated from application code
+- Reusable across multiple applications
+- Better access control (infra team vs. dev team)
+
+#### **Step 3: ArgoCD Infrastructure Project**
+
+**infra-gitops/argocd/overlays/prod/infra-project.yaml:**
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: infra
+  namespace: argocd
+spec:
+  description: Infrastructure applications
+  sourceRepos:
+    - 'https://github.com/nishanau/infra-gitops.git'
+    - 'https://charts.external-secrets.io'  # Helm chart repo
+    - '*'
+  destinations:
+    - namespace: '*'
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+```
+
+**Purpose:**
+- Groups infrastructure apps under one project
+- Allows Helm chart repositories (needed for ESO)
+- Better organization than using `default` project
+
+#### **Step 4: ESO CRDs and Operator Apps**
+
+**infra-gitops/argocd/overlays/prod/external-secrets-app.yaml:**
+```yaml
+---
+# App 1: CRDs (never pruned)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: external-secrets-crds
+  namespace: argocd
+spec:
+  project: infra
+  source:
+    repoURL: https://github.com/nishanau/infra-gitops
+    targetRevision: HEAD
+    path: external-secrets-operator/base
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: external-secrets
+  syncPolicy:
+    automated:
+      prune: false  # ✅ Never delete CRDs!
+      selfHeal: true
+
+---
+# App 2: Operator (can be pruned)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: external-secrets-operator
+  namespace: argocd
+spec:
+  project: infra
+  source:
+    repoURL: https://charts.external-secrets.io
+    chart: external-secrets
+    targetRevision: 0.9.11
+    helm:
+      releaseName: external-secrets
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: external-secrets
+  syncPolicy:
+    automated:
+      prune: true  # ✅ Safe to prune operator
+      selfHeal: true
+```
+
+**Why two separate Applications?**
+- **CRDs**: Protected from deletion (`prune: false`)
+- **Operator**: Can be safely upgraded/redeployed
+- Separation follows Kubernetes operator best practices
+
+#### **Step 5: Cloudflared SecretStore**
+
+**infra-gitops/cloudflared/base/secret-store.yaml:**
+```yaml
+apiVersion: external-secrets.io/v1beta1
+kind: SecretStore
+metadata:
+  name: doppler-secret-store
+  namespace: cloudflared
+spec:
+  provider:
+    doppler:
+      project: baremetal-k8s-project  # Doppler project
+      config: prd                      # Environment
+      auth:
+        secretRef:
+          dopplerToken:
+            name: doppler-token-auth   # Bootstrap secret
+            key: dopplerToken
+```
+
+**Purpose:**
+- Defines HOW to connect to Doppler
+- References bootstrap token (created manually)
+- Namespace-scoped for security isolation
+
+#### **Step 6: Cloudflared ExternalSecret**
+
+**infra-gitops/cloudflared/base/external-secret.yaml:**
+```yaml
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: cloudflared-credentials
+  namespace: cloudflared
+spec:
+  refreshInterval: 15m  # Sync every 15 minutes
+  
+  secretStoreRef:
+    name: doppler-secret-store
+    kind: SecretStore
+  
+  target:
+    name: cloudflared-credentials
+    creationPolicy: Owner  # ESO manages lifecycle
+    template:
+      type: Opaque
+  
+  data:
+    - secretKey: tunnel-token       # K8s secret key
+      remoteRef:
+        key: CLOUDFLARED_TUNNEL_TOKEN  # Doppler key
+```
+
+**Purpose:**
+- Declares WHAT secret to fetch
+- Maps Doppler keys to Kubernetes keys
+- ESO creates and manages the actual Secret
+
+#### **Step 7: Bootstrap Token (Manual Step)**
+
+```bash
+# One-time manual secret creation
+kubectl create secret generic doppler-token-auth \
+  --from-literal=dopplerToken="dp.st.prd.xxx..." \
+  -n cloudflared
+```
+
+**Why manual?**
+- Bootstrap problem: ESO needs this to authenticate
+- Not stored in Git (security)
+- Created once during initial setup
+
+---
+
+### 9.4 Deployment Flow
+
+**Order of operations:**
+```
+1. Apply ArgoCD infra project
+   ↓
+2. Deploy ESO CRDs (must be first)
+   ↓
+3. Deploy ESO Operator (needs CRDs)
+   ↓
+4. Create bootstrap token (kubectl)
+   ↓
+5. Deploy cloudflared app
+   ↓
+6. ESO fetches secret from Doppler
+   ↓
+7. ESO creates cloudflared-credentials Secret
+   ↓
+8. Cloudflared pods start with secret
+```
+
+**Verification:**
+```bash
+# Check ESO is running
+kubectl get pods -n external-secrets
+
+# Check SecretStore is valid
+kubectl get secretstore -n cloudflared
+# Output: doppler-secret-store   Valid   XX
+
+# Check ExternalSecret synced
+kubectl get externalsecret -n cloudflared
+# Output: cloudflared-credentials   SecretSynced   XX
+
+# Verify secret was created
+kubectl get secret cloudflared-credentials -n cloudflared
+
+# Check cloudflared pod
+kubectl get pods -n cloudflared
+```
+
+---
+
+### 9.5 Security Benefits
+
+| Aspect | Traditional Approach | Doppler + ESO |
+|--------|---------------------|---------------|
+| **Secret Storage** | In Git (encrypted) | In Doppler (cloud) |
+| **ArgoCD Access** | Sees encrypted values | Never sees secrets |
+| **Rotation** | Update Git, rebuild | Update Doppler, auto-syncs |
+| **Audit Trail** | Git commits only | Doppler logs all access |
+| **Access Control** | Git permissions | Separate secret management |
+| **Blast Radius** | Git compromise = all secrets | Token compromise = limited scope |
+
+**Key Principles:**
+- ✅ Secrets never in Git (not even encrypted)
+- ✅ Principle of least privilege (read-only service token)
+- ✅ Separation of concerns (deployment vs. secrets)
+- ✅ Audit trail (who accessed what, when)
+- ✅ Easy rotation (change in Doppler, auto-syncs)
+
+---
+
+## 10. Cloudflared Tunnel Configuration
+
+I use **Cloudflare Tunnel** to securely expose cluster services to the internet without opening firewall ports. The tunnel establishes an outbound-only connection to Cloudflare's edge network.
+
+**File Structure:**
+```
 cloudflared/
 ├── base/
-│ ├── configmap.yaml
-│ ├── deployment.yaml
-│ ├── kustomization.yaml
-│
-├── overlays/
-│ └── prod/
-
-**Note:** Currently I have injected the tunnel token manually into the cluster which is why the current `configmaps.yaml` isn't being enforced. In future, I plan to deploy secret management and after that, I will make the cloudlfared deployment use the configmap. 
-````bash
-kubectl create secret generic cloudflared-tunnel-token \
-  --from-literal=TUNNEL_TOKEN='YOUR_TOKEN_HERE' \
-  -n cloudflared
-````
+│   ├── deployment.yaml
+│   ├── secret-store.yaml
+│   ├── external-secret.yaml
+│   └── kustomization.yaml
+└── overlays/
+    └── prod/
+```
 
 ### infra-gitops/cloudflared/base/deployment.yaml
 ````yaml
@@ -1350,26 +1834,56 @@ data:
     ingress:
       - hostname: portfolio.nishdevops.org
         service: http://ingress-nginx-controller.ingress-nginx.svc.cluster.local:80
-      - hostname: portgolio-stage.nishdevops.org
+      - hostname: portfolio-stage.nishdevops.org
         service: http://ingress-nginx-controller.ingress-nginx.svc.cluster.local:80
 
       # Fallback route — returns 404 for unknown hostnames
       - service: http_status:404
 ````
-### infra-gitops/cloudflared/base/kustomization.yaml
 
+### infra-gitops/cloudflared/base/secret-store.yaml
 ````yaml
-resources:
-  - configmap.yaml
-  - deployment.yaml
+apiVersion: external-secrets.io/v1beta1
+kind: SecretStore
+metadata:
+  name: doppler-secret-store
+  namespace: cloudflared
+spec:
+  provider:
+    doppler:
+      project: baremetal-k8s-project
+      config: prd
+      auth:
+        secretRef:
+          dopplerToken:
+            name: doppler-token-auth
+            key: dopplerToken
+
 ````
 
----
+### infra-gitops/cloudflared/base/external-secret.yaml
+````yaml
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: cloudflared-credentials
+  namespace: cloudflared
+spec:
+  refreshInterval: 15m
+  secretStoreRef:
+    name: doppler-secret-store
+    kind: SecretStore
+  target:
+    name: cloudflared-credentials
+    creationPolicy: Owner
+    template:
+      type: Opaque
+  data:
+    - secretKey: tunnel-token
+      remoteRef:
+        key: CLOUDFLARED_TUNNEL_TOKEN
+````
 
-### Final Notes
-- Add version pinning and RBAC in future iterations.
-- Implement centralized monitoring and alerting.
-- Include full CI workflow YAML for completeness.
 
 ---
 
