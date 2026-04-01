@@ -4,7 +4,7 @@ import Link from "next/link";
 
 export const metadata = {
   title: "Nishan | DevOps, Cloud & Infrastructure Engineer",
-  description: "Portfolio of Nishan - IT professional passionate about DevOps, cloud engineering, and infrastructure, working across diverse IT domains every day.",
+  description: "Portfolio of Nishan - IT professional passionate about everything IT. Loves to delve into DevOps, cloud engineering, and infrastructure, working across diverse IT domains every day.",
 };
 
 export default function Home() {
