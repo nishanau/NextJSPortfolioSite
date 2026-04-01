@@ -3,8 +3,8 @@ import styles from "./page.module.css";
 import Link from "next/link";
 
 export const metadata = {
-  title: "Nishan | DevOps & Infrastructure Enthusiast",
-  description: "Portfolio of Nishan - Aspiring DevOps engineer passionate about cloud infrastructure, automation, and continuous learning in the IT field",
+  title: "Nishan | DevOps, Cloud & Infrastructure Engineer",
+  description: "Portfolio of Nishan - IT professional passionate about everything IT. Loves to delve into DevOps, cloud engineering, and infrastructure, working across diverse IT domains every day.",
 };
 
 export default function Home() {
@@ -14,24 +14,26 @@ export default function Home() {
         <div className={styles.titleWrapper}>
           <span className={styles.greeting}>Hey, I&apos;m</span>
           <h1 className={styles.title}>Nishan</h1>
-          <h2 className={styles.subtitle}>Aspiring DevOps Engineer</h2>
+          <h2 className={styles.subtitle}>DevOps · Cloud · Infrastructure · Automation</h2>
         </div>
         
         <p className={styles.description}>
-          I&apos;m on a journey to master the world of DevOps and infrastructure. What started as curiosity about 
-          <span className={styles.highlight}> how systems work</span> has turned into a genuine passion for 
-          <span className={styles.highlight}> building</span>, 
-          <span className={styles.highlight}> automating</span>, and 
-          <span className={styles.highlight}> optimizing</span> infrastructure. I love getting my hands dirty with Kubernetes, 
-          Docker, CI/CD pipelines, and cloud platforms—constantly learning, breaking things, and figuring out how to make them better.
+          I&apos;m deeply passionate about IT and work across
+          <span className={styles.highlight}> diverse IT domains</span> every day—from infrastructure and cloud administration to automation, security, and app development.
+          That breadth has shaped my drive to grow into roles in
+          <span className={styles.highlight}> DevOps</span>,
+          <span className={styles.highlight}> Cloud Engineering</span>, and
+          <span className={styles.highlight}> Infrastructure</span>—fields where I can operate across every layer of the stack and keep building, automating, and scaling.
         </p>
         
         <div className={styles.skills}>
-          <span className={styles.skill}>AWS/Azure</span>
+          <span className={styles.skill}>AZ-104 Certified</span>
+          <span className={styles.skill}>Azure / AWS</span>
           <span className={styles.skill}>Kubernetes</span>
           <span className={styles.skill}>Docker</span>
-          <span className={styles.skill}>Terraform</span>
           <span className={styles.skill}>CI/CD</span>
+          <span className={styles.skill}>Power Automate</span>
+          <span className={styles.skill}>Terraform</span>
           <span className={styles.skill}>GitOps</span>
           <span className={styles.skill}>Linux</span>
         </div>
@@ -51,7 +53,7 @@ export default function Home() {
           <Image
             src="/hero.png"
             className={styles.img}
-            alt="Nishan - Aspiring DevOps Engineer"
+            alt="Nishan - DevOps, Cloud & Infrastructure Engineer"
             width={500}
             height={500}
             priority={true}

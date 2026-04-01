@@ -66,7 +66,7 @@ export const About = () => {
                 />
                 <div className={styles.imgText}>
                     <h2>
-                        Patience, Consistency, Persistence.
+                        Zeal, Consistency, Persistence.
                     </h2>
                 </div>
             </div>
@@ -86,9 +86,11 @@ export const About = () => {
                         opened my eyes to the power of automation.
                     </p>
                     <p>
-                        Beyond automation, I&apos;ve developed a strong foundation in infrastructure management—maintaining Active Directory
+                        Beyond automation, I&apos;ve developed a strong foundation in infrastructure and cloud management—maintaining Active Directory
                         Domain Services, administering Microsoft 365 environments, managing user accounts, permissions, and ensuring robust
-                        security practices. This blend of automation and infrastructure work naturally led me toward the world of DevOps.
+                        security practices. I recently validated this expertise by passing the <strong>Microsoft AZ-104 (Azure Administrator Associate)</strong> exam.
+                        This blend of hands-on experience across diverse IT domains naturally drew me toward <strong>DevOps</strong>, <strong>Cloud Engineering</strong>,
+                        and <strong>Infrastructure</strong>—roles that let me operate across the full spectrum of modern IT.
                     </p>
                 </div>
                 <Button route="/portfolio" name="Check Out My Work" />
@@ -128,9 +130,9 @@ export const About = () => {
                     <div className={styles.timelineItem}>
                         <div className={styles.timelineDate}>April 2025</div>
                         <div className={styles.timelineContent}>
-                            <h3>DevOps Exploration</h3>
-                            <p>Discovered the world of DevOps, diving deep into CI/CD pipelines, containerization with Docker,
-                                and modern deployment strategies. This marked the beginning of my journey toward becoming a DevOps engineer.</p>
+                            <h3>DevOps & Cloud Exploration</h3>
+                            <p>Discovered the world of DevOps and cloud engineering, diving deep into CI/CD pipelines, containerization with Docker,
+                                and modern deployment strategies. This marked the beginning of my journey toward roles in DevOps, Cloud, and Infrastructure engineering.</p>
                         </div>
                     </div>
 
@@ -228,55 +230,49 @@ export const About = () => {
                         </div>
                     </div>
 
+                    <div className={styles.timelineItem}>
+                        <div className={styles.timelineDate}>March 2026</div>
+                        <div className={styles.timelineContent}>
+                            <h3>Microsoft Certified: Azure Administrator Associate (AZ-104)</h3>
+                            <p>Passed the AZ-104 exam, becoming a certified Microsoft Azure Administrator Associate. This certification
+                                validates hands-on expertise in managing Azure identities, governance, storage, compute, and networking—
+                                reinforcing a cloud-first mindset alongside existing on-premises infrastructure experience.</p>
+                            <p className={styles.principle}>
+                                <strong>What this means:</strong> Real-world Azure skills bridging on-premises and cloud, accelerating the path toward Cloud and Infrastructure engineering roles.
+                            </p>
+                        </div>
+                    </div>
+
                 </div>
             </div>
 
             <div className={styles.roadmapSection}>
-                <h1 className={styles.sectionTitle}>Roadmap</h1>
+                <h1 className={styles.sectionTitle}>What I&apos;m Working On</h1>
 
                 <div className={styles.roadmapGrid}>
                     <div className={styles.roadmapColumn}>
-                        <h2>✅ Completed</h2>
-                        <ul className={styles.roadmapList}>
-                            <li>Bare-metal Kubernetes cluster setup (3-node)</li>
-                            <li>GitOps implementation with ArgoCD</li>
-                            <li>Multi-environment architecture (dev/stage/prod)</li>
-                            <li>Reusable GitHub Actions CI workflows</li>
-                            <li>Security policies and enforcement (Conftest, OPA)</li>
-                            <li>Container registry integration (Docker Hub)</li>
-                            <li>Ingress controllers and load balancing (MetalLB)</li>
-                            <li>Automated deployments with health checks</li>
-                            <li>Pod networking with Flannel CNI</li>
-                            <li>Comprehensive documentation and learning logs</li>
-                        </ul>
-                    </div>
-
-                    <div className={styles.roadmapColumn}>
-                        <h2>🚀 Next Steps</h2>
+                        <h2>🔨 Currently In Progress</h2>
                         <ul className={styles.roadmapList}>
                             <li>
-                                <strong>Multi-Application Deployment:</strong> Deploy additional microservices and applications
-                                to demonstrate scalability and workload diversity
+                                <strong>Domain Redesign & Hierarchy:</strong> Redesigning the Active Directory domain structure and OU hierarchy
+                                to better reflect the organisation&apos;s operational model and enable cleaner policy scoping
                             </li>
                             <li>
-                                <strong>Centralized Versioning:</strong> Implement comprehensive versioning strategy across repositories,
-                                workflows, container images, and Helm charts for complete traceability
+                                <strong>Security Baseline:</strong> Creating a comprehensive security baseline for the domain, client machines,
+                                processes, and services — aligned with hardening standards for consistent enforcement across all sites
                             </li>
                             <li>
-                                <strong>Monitoring & Observability:</strong> Deploy Prometheus for metrics collection and Grafana
-                                for visualization, creating comprehensive dashboards for cluster and application health
+                                <strong>Shiploads Website Revamp:</strong> Designing and developing a modern, revamped Shiploads website
+                                with a fresh look, improved UX, and up-to-date content
                             </li>
                             <li>
-                                <strong>Centralized Logging:</strong> Implement EFK Stack (Elasticsearch, Fluentd, Kibana) for
-                                aggregated log management and analysis across all cluster workloads
+                                <strong>AZ-305 Preparation:</strong> Studying for the Microsoft Azure Solutions Architect Expert (AZ-305)
+                                certification to deepen cloud architecture knowledge and move toward senior cloud roles
                             </li>
                             <li>
-                                <strong>Infrastructure as Code (Terraform):</strong> Transform the entire infrastructure setup into
-                                Terraform modules for reproducible, automated deployment of the complete environment
-                            </li>
-                            <li>
-                                <strong>Cloud Migration:</strong> Migrate and adapt the infrastructure to AWS (EKS) and Azure (AKS)
-                                platforms, demonstrating cloud-agnostic architecture principles
+                                <strong>Inventory & Asset Tracking System:</strong> Developing a full-featured inventory and asset tracking
+                                system using Microsoft Power Apps, Dataverse, and Power Automate — replacing manual tracking with a
+                                structured, automated solution across all sites
                             </li>
                         </ul>
                     </div>
