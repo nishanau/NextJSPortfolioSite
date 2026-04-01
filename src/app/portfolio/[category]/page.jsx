@@ -65,15 +65,53 @@ const websites = [
     slug: "cicd-dockerized-app-deployment-aws",
   }
 ];
-const automation = [{
-      id: 1,
-    title: "CI/CD Dockerized App Deployment on AWS",
+const automation = [
+  {
+    id: 1,
+    title: "JotForm → Excel Automated Reporting Dashboard",
     description:
-      "Built a production-grade DevOps pipeline deploying my Next.js portfolio from GitHub to AWS EC2 using Docker, Nginx, and GitHub Actions. It automates multi-stage Docker builds, pushes to Docker Hub, and deploys with automatic container restarts. Configured Nginx with Certbot for HTTPS, provisioned EC2 with Docker, and set up Prometheus and Grafana for monitoring container health and resource usage. Gained skills in Docker optimization, CI/CD automation, secure deployment, AWS management, and production-grade observability.",
-    image: "/cicd_dockercompose.png",
+      "Integrated JotForm with Microsoft Excel via Power Automate webhooks so that every form submission is instantly appended to a live spreadsheet. Layered in Excel formulae to normalise and structure the incoming data into clean tables, then built dynamic charts and visualisations that update automatically with each new submission — turning raw form responses into a real-time reporting dashboard with zero manual effort.",
+    image: "/automation/jotform-excel-reporting/banner.png",
     category: "automation",
-    slug: "cicd-dockerized-app-deployment-aws",
-}];
+    slug: "jotform-excel-reporting",
+  },
+  {
+    id: 2,
+    title: "Power Automate & Microsoft Lists — Compliance Tracking System",
+    description:
+      "Replaced a fragile Excel-based task system with a structured Power Automate + Microsoft Lists solution. Automated compliance tracking workflows assign, escalate, and resolve tasks across multiple sites, while cross-site reporting flows aggregate data into a single view for management. The migration eliminated version-conflict issues and gave the team a real-time, auditable compliance record across the organisation.",
+    image: "/automation/compliance-tracking-lists/banner.png",
+    category: "automation",
+    slug: "compliance-tracking-lists",
+  },
+  {
+    id: 3,
+    title: "JotForm Digital Forms & Approval Workflows — Paperless Process Automation",
+    description:
+      "Digitalised a wide range of manual, paper-based processes across 12 stores entirely within JotForm — using its built-in form builder, workflow engine, multi-stage approval routing, automated email notifications, and task management. Leave requests, incident reports, purchase approvals, uniform orders, and more are now fully digital, auditable, and archived automatically — replacing paper forms, manual emails, and physical folders.",
+    image: "/automation/jotform-approval-workflows/banner.png",
+    category: "automation",
+    slug: "jotform-approval-workflows",
+  },
+  {
+    id: 4,
+    title: "Automated Weekly Sales & Operations Email Reports",
+    description:
+      "Built a suite of scheduled Power Automate flows that pull sales data and deliver tailored email reports every week — covering weekly sales performance, detailed product discount breakdowns, product damage summaries, and customer returns. Each report is automatically generated and distributed to relevant stakeholders on schedule, replacing manual data extraction and saving hours of weekly admin time.",
+    image: "/automation/sales-email-reports/banner.png",
+    category: "automation",
+    slug: "sales-email-reports",
+  },
+  {
+    id: 5,
+    title: "Group Policy (GPO) — Domain Governance & Configuration Management",
+    description:
+      "Designed and deployed a comprehensive suite of Group Policy Objects to enforce consistent governance across all domain-joined office and POS computers. Policies include managed Edge bookmarks for standardised browser configurations, scheduled weekly auto-restarts to maintain system health, custom logon script execution for app installations and environment setup, and domain-wide firewall rules enforced centrally — ensuring security, consistency, and compliance across all 12 sites without manual intervention.",
+    image: "/automation/gpo-domain-governance/banner.png",
+    category: "automation",
+    slug: "gpo-domain-governance",
+  },
+];
 
 const Category = async ({ params }) => {
   const {category} = await params || '';
