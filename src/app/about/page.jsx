@@ -231,6 +231,24 @@ export const About = () => {
                     </div>
 
                     <div className={styles.timelineItem}>
+                        <div className={styles.timelineDate}>February 2026</div>
+                        <div className={styles.timelineContent}>
+                            <h3>Security Baseline Report & Risk Assessment</h3>
+                            <p>Conducted a comprehensive security baseline assessment for Shiploads&apos; IT environment, closely aligned with the
+                                NIST Cybersecurity Framework (CSF) 2.0. Evaluated the organisation&apos;s security posture across people, processes,
+                                and technology — identifying gaps and prioritising remediation efforts.</p>
+                            <ul>
+                                <li><strong>CSF 2.0 Alignment:</strong> Mapped existing controls and practices against the six CSF 2.0 core functions —
+                                    Govern, Identify, Protect, Detect, Respond, and Recover</li>
+                                <li><strong>Risk Register:</strong> Developed a structured risk register cataloguing identified vulnerabilities,
+                                    threat likelihood, business impact, and current control effectiveness</li>
+                                <li><strong>Remediation Plan:</strong> Created a prioritised remediation roadmap with actionable steps, ownership
+                                    assignments, and timelines to address critical and high-risk findings</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div className={styles.timelineItem}>
                         <div className={styles.timelineDate}>March 2026</div>
                         <div className={styles.timelineContent}>
                             <h3>Microsoft Certified: Azure Administrator Associate (AZ-104)</h3>
@@ -256,10 +274,6 @@ export const About = () => {
                             <li>
                                 <strong>Domain Redesign & Hierarchy:</strong> Redesigning the Active Directory domain structure and OU hierarchy
                                 to better reflect the organisation&apos;s operational model and enable cleaner policy scoping
-                            </li>
-                            <li>
-                                <strong>Security Baseline:</strong> Creating a comprehensive security baseline for the domain, client machines,
-                                processes, and services — aligned with hardening standards for consistent enforcement across all sites
                             </li>
                             <li>
                                 <strong>Shiploads Website Revamp:</strong> Designing and developing a modern, revamped Shiploads website
