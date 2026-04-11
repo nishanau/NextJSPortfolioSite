@@ -6,6 +6,6 @@ resources:
 nameSuffix: -dev
 images:
   - name: docker.io/nishans0/next-portfolio
-    newTag: sha-c4035f63fea880bfe9d9606a32a9819dd306c5a3
+    newTag: sha-5050f56f624c233bd25e4c2d3b1c1eebdca9181f
 patches:
   - path: hpa-patch.yaml
